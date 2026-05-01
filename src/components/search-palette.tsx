@@ -163,8 +163,8 @@ export function SearchPalette({
           {!query && !indexing && (
             <div className="px-4 py-10 text-center text-sm text-muted-foreground">
               {indexSize != null
-                ? `${indexSize.toLocaleString()} archivos indexados. Escribí para buscar.`
-                : `Escribí para buscar archivos en ${root}`}
+                ? `${indexSize.toLocaleString()} archivos indexados. Escribe para buscar.`
+                : `Escribe para buscar archivos en ${root}`}
             </div>
           )}
           {!query && indexing && (

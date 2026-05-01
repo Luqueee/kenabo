@@ -250,6 +250,66 @@ fn search_files(
     Ok(results)
 }
 
+fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    std::fs::create_dir_all(dst)?;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let dst_path = dst.join(entry.file_name());
+        if entry.file_type()?.is_dir() {
+            copy_dir_recursive(&entry.path(), &dst_path)?;
+        } else {
+            std::fs::copy(entry.path(), dst_path)?;
+        }
+    }
+    Ok(())
+}
+
+#[tauri::command]
+fn create_dir(path: String) -> Result<(), String> {
+    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_file(path: String) -> Result<(), String> {
+    std::fs::File::create(&path).map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn rename_entry(src: String, new_name: String) -> Result<(), String> {
+    if new_name.contains('/') || new_name.contains('\\') || new_name.is_empty() {
+        return Err("Nombre inválido".to_string());
+    }
+    let src_path = Path::new(&src);
+    let parent = src_path.parent().ok_or("Sin directorio padre")?;
+    std::fs::rename(src_path, parent.join(&new_name)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_entry(path: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if p.is_dir() {
+        std::fs::remove_dir_all(p).map_err(|e| e.to_string())
+    } else {
+        std::fs::remove_file(p).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn copy_entry(src: String, dest: String) -> Result<(), String> {
+    let src_path = Path::new(&src);
+    let dest_path = Path::new(&dest);
+    if src_path.is_dir() {
+        copy_dir_recursive(src_path, dest_path).map_err(|e| e.to_string())
+    } else {
+        std::fs::copy(src_path, dest_path).map(|_| ()).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn move_entry(src: String, dest: String) -> Result<(), String> {
+    std::fs::rename(&src, &dest).map_err(|e| e.to_string())
+}
+
 fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
     tauri::plugin::Builder::<R>::new("external-navigation")
         .on_navigation(|webview, url| {
@@ -298,7 +358,13 @@ pub fn run() {
             open_file,
             search_files,
             index_path,
-            clear_search_index
+            clear_search_index,
+            create_dir,
+            create_file,
+            rename_entry,
+            delete_entry,
+            copy_entry,
+            move_entry
         ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {

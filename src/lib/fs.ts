@@ -32,3 +32,21 @@ export const indexPath = (root: string): Promise<number> =>
 
 export const clearSearchIndex = (): Promise<void> =>
   invoke("clear_search_index")
+
+export const createDir = (path: string): Promise<void> =>
+  invoke("create_dir", { path })
+
+export const createFile = (path: string): Promise<void> =>
+  invoke("create_file", { path })
+
+export const renameEntry = (src: string, newName: string): Promise<void> =>
+  invoke("rename_entry", { src, newName })
+
+export const deleteEntry = (path: string): Promise<void> =>
+  invoke("delete_entry", { path })
+
+export const copyEntry = (src: string, dest: string): Promise<void> =>
+  invoke("copy_entry", { src, dest })
+
+export const moveEntry = (src: string, dest: string): Promise<void> =>
+  invoke("move_entry", { src, dest })
