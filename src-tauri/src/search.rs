@@ -1,7 +1,8 @@
 use std::collections::HashMap;
+use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
-use std::time::SystemTime;
+use std::time::{Duration, Instant, SystemTime};
 
 use ignore::{WalkBuilder, WalkState};
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
@@ -21,6 +22,7 @@ pub struct SearchResult {
 
 const SEARCH_LIMIT: usize = 100;
 const WALK_LIMIT: usize = 250_000;
+const INDEX_TTL: Duration = Duration::from_secs(5 * 60); // evict after 5 min idle
 const SKIP_DIRS: &[&str] = &[
     ".git",
     "node_modules",
@@ -39,17 +41,20 @@ const SKIP_DIRS: &[&str] = &[
     "Library",
 ];
 
+// Lean: only what the fuzzy scorer needs. Size/mtime fetched on-demand at result time.
 struct IndexEntry {
     name: String,
     path: String,
     is_dir: bool,
-    size: u64,
-    modified: u64,
-    extension: Option<String>,
+}
+
+struct CachedIndex {
+    entries: Arc<Vec<IndexEntry>>,
+    last_used: Instant,
 }
 
 #[derive(Default)]
-pub struct SearchIndex(Mutex<HashMap<String, Arc<Vec<IndexEntry>>>>);
+pub struct SearchIndex(Mutex<HashMap<String, CachedIndex>>);
 
 fn build_index(root: &str) -> Vec<IndexEntry> {
     let entries: Arc<Mutex<Vec<IndexEntry>>> = Arc::new(Mutex::new(Vec::with_capacity(8192)));
@@ -96,31 +101,11 @@ fn build_index(root: &str) -> Vec<IndexEntry> {
                     None => return WalkState::Continue,
                 };
                 let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-                let metadata = entry.metadata().ok();
-                let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-                let modified = metadata
-                    .as_ref()
-                    .and_then(|m| m.modified().ok())
-                    .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
-                    .map(|d| d.as_secs())
-                    .unwrap_or(0);
-                let extension = if !is_dir {
-                    entry
-                        .path()
-                        .extension()
-                        .and_then(|e| e.to_str())
-                        .map(|e| e.to_lowercase())
-                } else {
-                    None
-                };
                 if let Ok(mut e) = entries.lock() {
                     e.push(IndexEntry {
                         name,
                         path: entry.path().to_string_lossy().into_owned(),
                         is_dir,
-                        size: if is_dir { 0 } else { size },
-                        modified,
-                        extension,
                     });
                 }
                 WalkState::Continue
@@ -135,15 +120,18 @@ fn build_index(root: &str) -> Vec<IndexEntry> {
 
 fn get_or_build_index(state: &SearchIndex, root: &str) -> Result<Arc<Vec<IndexEntry>>, String> {
     {
-        let map = state.0.lock().map_err(|e| e.to_string())?;
-        if let Some(idx) = map.get(root) {
-            return Ok(idx.clone());
+        let mut map = state.0.lock().map_err(|e| e.to_string())?;
+        // Evict stale entries before lookup.
+        map.retain(|_, v| v.last_used.elapsed() < INDEX_TTL);
+        if let Some(cached) = map.get_mut(root) {
+            cached.last_used = Instant::now();
+            return Ok(cached.entries.clone());
         }
     }
-    let entries = build_index(root);
-    let arc = Arc::new(entries);
+    let entries = Arc::new(build_index(root));
     let mut map = state.0.lock().map_err(|e| e.to_string())?;
-    Ok(map.entry(root.to_string()).or_insert(arc).clone())
+    map.insert(root.to_string(), CachedIndex { entries: entries.clone(), last_used: Instant::now() });
+    Ok(entries)
 }
 
 #[tauri::command]
@@ -186,9 +174,9 @@ pub fn search_files(
                     name: e.name.clone(),
                     path: e.path.clone(),
                     is_dir: e.is_dir,
-                    size: e.size,
-                    modified: e.modified,
-                    extension: e.extension.clone(),
+                    size: 0,
+                    modified: 0,
+                    extension: None,
                     score,
                 })
         })
@@ -200,5 +188,25 @@ pub fn search_files(
             .then_with(|| a.name.len().cmp(&b.name.len()))
     });
     results.truncate(SEARCH_LIMIT);
+
+    // Stat top results only — avoids storing metadata for 250k entries.
+    for r in &mut results {
+        let p = Path::new(&r.path);
+        if let Ok(meta) = std::fs::symlink_metadata(p) {
+            r.size = if r.is_dir { 0 } else { meta.len() };
+            r.modified = meta
+                .modified()
+                .ok()
+                .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+        }
+        r.extension = if !r.is_dir {
+            p.extension().and_then(|e| e.to_str()).map(|e| e.to_lowercase())
+        } else {
+            None
+        };
+    }
+
     Ok(results)
 }

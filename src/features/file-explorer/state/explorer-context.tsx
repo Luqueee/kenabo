@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -188,53 +189,62 @@ export function FileExplorerProvider({
     }
   }, [entries, inline.pendingSelect, inline.clearPendingSelect, inline])
 
-  function handleActivate(entry: FileEntry) {
+  // Refs let callbacks always see latest data without being in deps → stable references.
+  const filteredEntriesRef = useRef(filteredEntries)
+  const entriesRef = useRef(entries)
+  useEffect(() => { filteredEntriesRef.current = filteredEntries }, [filteredEntries])
+  useEffect(() => { entriesRef.current = entries }, [entries])
+
+  const handleActivate = useCallback((entry: FileEntry) => {
     if (entry.is_dir) onNavigate(entry.path)
     else ops.open(entry.path)
-  }
+  }, [onNavigate, ops])
 
-  function openContextMenu(e: ReactMouseEvent, entry: FileEntry | null) {
+  const openContextMenu = useCallback((e: ReactMouseEvent, entry: FileEntry | null) => {
     e.preventDefault()
     e.stopPropagation()
     const x = Math.min(e.clientX, window.innerWidth - 210)
     const y = Math.min(e.clientY, window.innerHeight - 240)
     if (entry) setSelected(entry.path)
     setContextMenu({ x, y, entry })
-  }
-  function closeContextMenu() {
-    setContextMenu(null)
-  }
+  }, [setSelected])
 
-  async function handlePaste() {
+  const closeContextMenu = useCallback(() => setContextMenu(null), [])
+
+  const handlePaste = useCallback(async () => {
     if (!clipboard) return
     await ops.paste(clipboard, path)
     if (clipboard.op === "cut") clearClipboard()
-  }
+  }, [clipboard, ops, path, clearClipboard])
 
-  async function confirmDelete() {
+  const confirmDelete = useCallback(async () => {
     if (deleteTargets.length === 0) return
     const targets = deleteTargets
     setDeleteTargets([])
     selection.clear()
     await ops.removeMany(targets.map((t) => t.path))
-  }
+  }, [deleteTargets, ops, selection])
 
   const selEntry = selected
     ? entries.find((en) => en.path === selected) ?? null
     : null
 
-  function selectedEntries(): FileEntry[] {
-    if (selection.selectedPaths.size === 0) return selEntry ? [selEntry] : []
-    return entries.filter((en) => selection.selectedPaths.has(en.path))
-  }
+  const selectedEntries = useCallback((): FileEntry[] => {
+    const paths = selection.selectedPaths
+    if (paths.size === 0) {
+      const anchor = entriesRef.current.find((en) => en.path === selected) ?? null
+      return anchor ? [anchor] : []
+    }
+    return entriesRef.current.filter((en) => paths.has(en.path))
+  }, [selected, selection.selectedPaths])
 
   const navEnabled = !contextMenu && deleteTargets.length === 0 && !inline.inlineMode
 
-  function scrollToSelected(p: string) {
+  const scrollToSelected = useCallback((p: string) => {
     tableRef.current
       ?.querySelector<HTMLElement>(`[data-path="${CSS.escape(p)}"]`)
       ?.scrollIntoView({ block: "nearest" })
-  }
+  }, [])
 
   useHotkey("Escape", () => {
     if (contextMenu) return setContextMenu(null)
@@ -345,12 +355,26 @@ export function FileExplorerProvider({
     if (selEntry?.is_dir) onNavigate(selEntry.path)
   }, { enabled: navEnabled && !!selEntry?.is_dir })
 
-  const segments = pathSegments(path)
-  const parent = parentPath(path)
-  const dirCount = filteredEntries.filter((e) => e.is_dir).length
+  const segments = useMemo(() => pathSegments(path), [path])
+  const parent = useMemo(() => parentPath(path), [path])
+  const dirCount = useMemo(() => filteredEntries.filter((e) => e.is_dir).length, [filteredEntries])
   const fileCount = filteredEntries.length - dirCount
 
-  const value: Value = {
+  const selectAt = useCallback(
+    (p: string, e: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) =>
+      selection.select(p, modeFromEvent(e), filteredEntriesRef.current),
+    [selection]
+  )
+  const selectAll = useCallback(
+    () => selection.selectAll(filteredEntriesRef.current.map((en) => en.path)),
+    [selection]
+  )
+  const undo = useCallback(async () => {
+    await undoStack.undo()
+    await reload()
+  }, [undoStack, reload])
+
+  const value = useMemo((): Value => ({
     path,
     onNavigate,
     onOpenSearch,
@@ -368,9 +392,8 @@ export function FileExplorerProvider({
     setSelected,
     selectedPaths: selection.selectedPaths,
     isSelected: selection.isSelected,
-    selectAt: (path, e) =>
-      selection.select(path, modeFromEvent(e), filteredEntries),
-    selectAll: () => selection.selectAll(filteredEntries.map((en) => en.path)),
+    selectAt,
+    selectAll,
     clearSelection: selection.clear,
     filterQuery,
     setFilterQuery,
@@ -412,11 +435,22 @@ export function FileExplorerProvider({
     handlePaste,
     canUndo: undoStack.canUndo,
     undoLabel: undoStack.peek ? describeUndoOp(undoStack.peek) : null,
-    undo: async () => {
-      await undoStack.undo()
-      await reload()
-    },
-  }
+    undo,
+  }), [
+    path, onNavigate, onOpenSearch, onAddFavorite, isFavorite,
+    entries, filteredEntries, loading, error, reload, total, hasMore, loadMore,
+    selected, setSelected, selection, selectAt, selectAll,
+    filterQuery, setFilterQuery, clipboard, copy, cut,
+    ops.opError, ops.clearError,
+    inline.inlineMode, inline.inlineTarget, inline.inlineValue, inline.setInlineValue,
+    inline.startRename, inline.startNewFolder, inline.startNewFile,
+    inline.cancelInline, inline.commitInline,
+    contextMenu, openContextMenu, closeContextMenu,
+    deleteTargets, setDeleteTargets, confirmDelete, clipboardHas,
+    dnd.draggingEntry, dnd.copyMode, viewMode, setViewMode,
+    terminalId, onOpenSettings, segments, parent, dirCount, fileCount,
+    handleActivate, handlePaste, undoStack.canUndo, undoStack.peek, undo,
+  ])
 
   return (
     <Ctx.Provider value={value}>

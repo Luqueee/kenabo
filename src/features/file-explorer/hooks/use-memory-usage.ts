@@ -7,7 +7,7 @@ export type MemoryUsage = {
   total: number
 }
 
-export function useMemoryUsage(intervalMs = 2000) {
+export function useMemoryUsage(intervalMs = 10_000) {
   const [usage, setUsage] = useState<MemoryUsage | null>(null)
 
   useEffect(() => {
