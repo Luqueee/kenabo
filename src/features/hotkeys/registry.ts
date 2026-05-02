@@ -38,6 +38,9 @@ export const HOTKEY_ACTIONS = [
   { id: "view.terminal", label: "Abrir terminal", group: "Vista", defaultHotkey: "Mod+T" },
   { id: "view.settings", label: "Abrir configuración", group: "Vista", defaultHotkey: "Mod+," },
 
+  // Historial
+  { id: "history.undo", label: "Deshacer", group: "Historial", defaultHotkey: "Mod+Z" },
+
   // Filtro
   { id: "filter.focus", label: "Enfocar filtro", group: "Filtro", defaultHotkey: "/" },
 ] as const satisfies readonly HotkeyAction[]

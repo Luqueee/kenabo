@@ -29,6 +29,8 @@ import { useViewMode, type ViewMode } from "../hooks/use-view-mode"
 import { useInlineEditing, type InlineMode } from "../hooks/use-inline-editing"
 import { useDragDrop } from "../hooks/use-drag-drop"
 import { useSelection, modeFromEvent } from "../hooks/use-selection"
+import { useUndoStack } from "@/features/filesystem/api/use-undo-stack"
+import { describeUndoOp } from "@/features/filesystem/domain/undo-op"
 
 export type { InlineMode, ViewMode }
 
@@ -100,6 +102,10 @@ interface Value {
 
   handleActivate: (entry: FileEntry) => void
   handlePaste: () => Promise<void>
+
+  canUndo: boolean
+  undoLabel: string | null
+  undo: () => Promise<void>
 }
 
 const Ctx = createContext<Value | null>(null)
@@ -133,7 +139,8 @@ export function FileExplorerProvider({
 }: ProviderProps) {
   const { entries, loading, error, reload } = useDirectory(path)
   const { clipboard, copy, cut, clear: clearClipboard, hasPath: clipboardHas } = useClipboard()
-  const ops = useFileOps(reload)
+  const undoStack = useUndoStack()
+  const ops = useFileOps(reload, undoStack)
 
   const selection = useSelection()
   const selected = selection.anchorPath
@@ -272,6 +279,11 @@ export function FileExplorerProvider({
     inline.startNewFolder()
   }, { enabled: navEnabled, ignoreInputs: true })
 
+  useAction("history.undo", async () => {
+    await undoStack.undo()
+    await reload()
+  }, { enabled: undoStack.canUndo, ignoreInputs: true })
+
   useAction("view.reload", () => {
     reload()
   }, { ignoreInputs: true })
@@ -390,6 +402,12 @@ export function FileExplorerProvider({
     totalCount: entries.length,
     handleActivate,
     handlePaste,
+    canUndo: undoStack.canUndo,
+    undoLabel: undoStack.peek ? describeUndoOp(undoStack.peek) : null,
+    undo: async () => {
+      await undoStack.undo()
+      await reload()
+    },
   }
 
   return (
