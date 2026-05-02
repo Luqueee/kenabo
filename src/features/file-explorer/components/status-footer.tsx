@@ -31,7 +31,9 @@ export function StatusFooter() {
             {clipboard && (
               <span className="mr-3 text-primary">
                 {clipboard.op === "copy" ? "Copiado" : "Cortado"}:{" "}
-                {clipboard.path.split("/").at(-1)}
+                {clipboard.paths.length === 1
+                  ? clipboard.paths[0].split("/").at(-1)
+                  : `${clipboard.paths.length} elementos`}
               </span>
             )}
             {dirCount} {dirCount === 1 ? "carpeta" : "carpetas"} · {fileCount}{" "}

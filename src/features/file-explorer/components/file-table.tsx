@@ -179,8 +179,7 @@ function VirtualTable() {
           const selectedRow = isSelected(entry.path)
           const isRenaming =
             inlineMode === "rename" && inlineTarget === entry.path
-          const isCut =
-            clipboard?.op === "cut" && clipboard.path === entry.path
+          const isCut = clipboard?.op === "cut" && clipboardHas(entry.path)
 
           return (
             <FileRow

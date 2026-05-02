@@ -63,13 +63,22 @@ export function FileContextMenu() {
     cut,
     handlePaste,
     startRename,
-    setDeleteTarget,
+    setDeleteTargets,
     startNewFolder,
     startNewFile,
+    selectedPaths,
+    entries,
   } = useFileExplorer()
 
   if (!contextMenu) return null
   const entry = contextMenu.entry
+  const targetPaths =
+    entry && selectedPaths.has(entry.path) && selectedPaths.size > 1
+      ? Array.from(selectedPaths)
+      : entry
+        ? [entry.path]
+        : []
+  const targetEntries = entries.filter((e) => targetPaths.includes(e.path))
 
   return createPortal(
     <>
@@ -102,7 +111,7 @@ export function FileContextMenu() {
               label="Copiar"
               shortcut="⌘C"
               onClick={() => {
-                copy(entry.path)
+                copy(targetPaths)
                 closeContextMenu()
               }}
             />
@@ -111,7 +120,7 @@ export function FileContextMenu() {
               label="Cortar"
               shortcut="⌘X"
               onClick={() => {
-                cut(entry.path)
+                cut(targetPaths)
                 closeContextMenu()
               }}
             />
@@ -132,7 +141,7 @@ export function FileContextMenu() {
               shortcut="⌦"
               danger
               onClick={() => {
-                setDeleteTarget(entry)
+                setDeleteTargets(targetEntries)
                 closeContextMenu()
               }}
             />

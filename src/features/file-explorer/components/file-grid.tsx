@@ -10,6 +10,7 @@ export function FileGrid() {
     isSelected,
     selectAt,
     clipboard,
+    clipboardHas,
     inlineMode,
     inlineTarget,
     inlineValue,
@@ -57,7 +58,7 @@ export function FileGrid() {
         const selectedTile = isSelected(entry.path)
         const isRenaming =
           inlineMode === "rename" && inlineTarget === entry.path
-        const isCut = clipboard?.op === "cut" && clipboard.path === entry.path
+        const isCut = clipboard?.op === "cut" && clipboardHas(entry.path)
 
         return (
           <FileTile
