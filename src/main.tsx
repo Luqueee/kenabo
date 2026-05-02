@@ -5,7 +5,7 @@ import type { IconifyJSON } from "@iconify/types"
 import vscodeIconsData from "@iconify-json/vscode-icons/icons.json"
 
 import "./index.css"
-import App from "./App.tsx"
+import App from "./app/App"
 
 addCollection(vscodeIconsData as IconifyJSON)
 

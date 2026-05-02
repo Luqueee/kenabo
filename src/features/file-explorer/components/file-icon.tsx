@@ -1,6 +1,5 @@
 import { Icon } from "@iconify/react"
 import { Folder, File } from "lucide-react"
-import type { FileEntry } from "./types"
 
 const FILENAME_ICON: Record<string, string> = {
   Dockerfile: "vscode-icons:file-type-docker",
@@ -21,36 +20,31 @@ const FILENAME_ICON: Record<string, string> = {
   ".env.development": "vscode-icons:file-type-dotenv",
   ".env.production": "vscode-icons:file-type-dotenv",
   ".editorconfig": "vscode-icons:file-type-editorconfig",
-  "LICENSE": "vscode-icons:file-type-license",
+  LICENSE: "vscode-icons:file-type-license",
   "LICENSE.md": "vscode-icons:file-type-license",
   "schema.prisma": "vscode-icons:file-type-prisma",
 }
 
 const EXT_ICON: Record<string, string> = {
-  // TypeScript
   ts: "vscode-icons:file-type-typescript",
   mts: "vscode-icons:file-type-typescript",
   cts: "vscode-icons:file-type-typescript",
   tsx: "vscode-icons:file-type-reactts",
-  // JavaScript
   js: "vscode-icons:file-type-javascript",
   mjs: "vscode-icons:file-type-javascript",
   cjs: "vscode-icons:file-type-javascript",
   jsx: "vscode-icons:file-type-reactjs",
-  // Web
   html: "vscode-icons:file-type-html",
   htm: "vscode-icons:file-type-html",
   css: "vscode-icons:file-type-css",
   scss: "vscode-icons:file-type-scss",
   sass: "vscode-icons:file-type-sass",
   less: "vscode-icons:file-type-less",
-  // Data / Config
   json: "vscode-icons:file-type-json",
   yaml: "vscode-icons:file-type-yaml",
   yml: "vscode-icons:file-type-yaml",
   toml: "vscode-icons:file-type-toml",
   xml: "vscode-icons:file-type-xml",
-  // Docs
   md: "vscode-icons:file-type-markdown",
   mdx: "vscode-icons:file-type-mdx",
   txt: "vscode-icons:file-type-text",
@@ -61,7 +55,6 @@ const EXT_ICON: Record<string, string> = {
   xlsx: "vscode-icons:file-type-excel",
   ppt: "vscode-icons:file-type-powerpoint",
   pptx: "vscode-icons:file-type-powerpoint",
-  // Systems / General purpose
   py: "vscode-icons:file-type-python",
   pyw: "vscode-icons:file-type-python",
   rs: "vscode-icons:file-type-rust",
@@ -93,26 +86,20 @@ const EXT_ICON: Record<string, string> = {
   cljs: "vscode-icons:file-type-clojure",
   erl: "vscode-icons:file-type-erlang",
   hrl: "vscode-icons:file-type-erlang",
-  // Frameworks
   vue: "vscode-icons:file-type-vue",
   svelte: "vscode-icons:file-type-svelte",
-  // DB / Query
   sql: "vscode-icons:file-type-sql",
   graphql: "vscode-icons:file-type-graphql",
   gql: "vscode-icons:file-type-graphql",
   prisma: "vscode-icons:file-type-prisma",
-  // Shell
   sh: "vscode-icons:file-type-shell",
   bash: "vscode-icons:file-type-shell",
   zsh: "vscode-icons:file-type-shell",
   fish: "vscode-icons:file-type-shell",
   ps1: "vscode-icons:file-type-powershell",
-  // Keys / Certs
   pem: "vscode-icons:file-type-key",
   key: "vscode-icons:file-type-key",
-  // Env
   env: "vscode-icons:file-type-dotenv",
-  // Media — images
   png: "vscode-icons:file-type-image",
   jpg: "vscode-icons:file-type-image",
   jpeg: "vscode-icons:file-type-image",
@@ -123,14 +110,12 @@ const EXT_ICON: Record<string, string> = {
   heic: "vscode-icons:file-type-image",
   ico: "vscode-icons:file-type-image",
   svg: "vscode-icons:file-type-svg",
-  // Media — video
   mp4: "vscode-icons:file-type-video",
   mov: "vscode-icons:file-type-video",
   avi: "vscode-icons:file-type-video",
   mkv: "vscode-icons:file-type-video",
   webm: "vscode-icons:file-type-video",
   m4v: "vscode-icons:file-type-video",
-  // Media — audio
   mp3: "vscode-icons:file-type-audio",
   wav: "vscode-icons:file-type-audio",
   flac: "vscode-icons:file-type-audio",
@@ -138,7 +123,6 @@ const EXT_ICON: Record<string, string> = {
   ogg: "vscode-icons:file-type-audio",
   m4a: "vscode-icons:file-type-audio",
   opus: "vscode-icons:file-type-audio",
-  // Archives
   zip: "vscode-icons:file-type-zip",
   tar: "vscode-icons:file-type-zip",
   gz: "vscode-icons:file-type-zip",
@@ -148,18 +132,23 @@ const EXT_ICON: Record<string, string> = {
   xz: "vscode-icons:file-type-zip",
 }
 
-export function FileIcon({ entry }: { entry: FileEntry }) {
-  const cls = "h-4 w-4 shrink-0"
+interface Props {
+  name: string
+  isDir: boolean
+  extension?: string | null
+  size?: number
+}
 
-  if (entry.is_dir)
+export function FileIcon({ name, isDir, extension, size = 16 }: Props) {
+  const cls = "h-4 w-4 shrink-0"
+  if (isDir)
     return <Folder className={`${cls} fill-blue-300/40 text-blue-300`} />
 
-  const nameIcon = FILENAME_ICON[entry.name]
-  if (nameIcon) return <Icon icon={nameIcon} width={16} height={16} />
+  const nameIcon = FILENAME_ICON[name]
+  if (nameIcon) return <Icon icon={nameIcon} width={size} height={size} />
 
-  const ext = entry.extension ?? ""
-  const extIcon = EXT_ICON[ext]
-  if (extIcon) return <Icon icon={extIcon} width={16} height={16} />
+  const extIcon = extension ? EXT_ICON[extension] : null
+  if (extIcon) return <Icon icon={extIcon} width={size} height={size} />
 
   return <File className={`${cls} text-muted-foreground`} />
 }

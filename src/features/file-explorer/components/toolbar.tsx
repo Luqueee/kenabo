@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import type { ToolbarProps } from "./types"
+import type { PathSegment } from "@/features/filesystem/domain/path"
 
 function DroppableUpButton({
   parent,
@@ -54,7 +54,7 @@ function DroppableBreadcrumbLink({
   isDragging,
   onNavigate,
 }: {
-  seg: { label: string; path: string }
+  seg: PathSegment
   isDragging: boolean
   onNavigate: (path: string) => void
 }) {
@@ -80,6 +80,18 @@ function DroppableBreadcrumbLink({
   )
 }
 
+interface Props {
+  segments: PathSegment[]
+  parent: string | null
+  loading: boolean
+  isFavorite: boolean
+  isDragging: boolean
+  onNavigate: (path: string) => void
+  onRefresh: () => void
+  onAddFavorite: () => void
+  onOpenSearch: () => void
+}
+
 export function Toolbar({
   segments,
   parent,
@@ -90,9 +102,12 @@ export function Toolbar({
   onRefresh,
   onAddFavorite,
   onOpenSearch,
-}: ToolbarProps) {
+}: Props) {
   return (
-    <header data-tauri-drag-region className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur">
+    <header
+      data-tauri-drag-region
+      className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur"
+    >
       <SidebarTrigger className="h-8 w-8" />
       <Separator orientation="vertical" className="mx-1 h-full" />
 

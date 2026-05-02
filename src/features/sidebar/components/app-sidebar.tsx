@@ -1,5 +1,13 @@
 import * as React from "react"
-import { Home, Monitor, FileText, Download, HardDrive, Star, X } from "lucide-react"
+import {
+  Home,
+  Monitor,
+  FileText,
+  Download,
+  HardDrive,
+  Star,
+  X,
+} from "lucide-react"
 import {
   Sidebar,
   SidebarContent,

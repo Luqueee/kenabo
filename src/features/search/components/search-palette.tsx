@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Search, Folder, File, Loader2, CornerDownLeft } from "lucide-react"
-import { searchFiles, indexPath, type SearchResult } from "@/lib/fs"
+import { useSearch, useSearchIndex } from "../api/use-search"
+import type { SearchResult } from "@/features/filesystem/domain/file-entry"
 
 interface Props {
   root: string
@@ -18,74 +19,22 @@ export function SearchPalette({
   onOpenFile,
 }: Props) {
   const [query, setQuery] = useState("")
-  const [results, setResults] = useState<SearchResult[]>([])
   const [selected, setSelected] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [indexing, setIndexing] = useState(false)
-  const [indexSize, setIndexSize] = useState<number | null>(null)
-  const reqIdRef = useRef(0)
   const listRef = useRef<HTMLDivElement | null>(null)
 
-  // Reset on open + warm cache
+  const { indexing, size: indexSize } = useSearchIndex(root, open)
+  const { results, loading } = useSearch(root, query, open)
+
   useEffect(() => {
     if (!open) return
-    /* eslint-disable react-hooks/set-state-in-effect */
     setQuery("")
-    setResults([])
     setSelected(0)
-    setIndexing(true)
-    setIndexSize(null)
-    /* eslint-enable react-hooks/set-state-in-effect */
-    let cancelled = false
-    indexPath(root)
-      .then((n) => {
-        if (cancelled) return
-        setIndexSize(n)
-      })
-      .catch((e) => {
-        if (cancelled) return
-        console.error(e)
-      })
-      .finally(() => {
-        if (!cancelled) setIndexing(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [open, root])
+  }, [open])
 
-  // Debounced search; ignore stale responses
   useEffect(() => {
-    if (!open) return
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (!query.trim()) {
-      setResults([])
-      setLoading(false)
-      return
-    }
-    setLoading(true)
-    /* eslint-enable react-hooks/set-state-in-effect */
-    const myReq = ++reqIdRef.current
-    const timer = window.setTimeout(() => {
-      searchFiles(root, query)
-        .then((r) => {
-          if (myReq !== reqIdRef.current) return
-          setResults(r)
-          setSelected(0)
-        })
-        .catch((e) => {
-          if (myReq !== reqIdRef.current) return
-          console.error(e)
-          setResults([])
-        })
-        .finally(() => {
-          if (myReq === reqIdRef.current) setLoading(false)
-        })
-    }, 40)
-    return () => window.clearTimeout(timer)
-  }, [query, root, open])
+    setSelected(0)
+  }, [results])
 
-  // Keyboard navigation
   useEffect(() => {
     if (!open) return
     function handler(e: KeyboardEvent) {
@@ -106,9 +55,9 @@ export function SearchPalette({
     }
     window.addEventListener("keydown", handler)
     return () => window.removeEventListener("keydown", handler)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, results, selected])
 
-  // Scroll selected into view
   useEffect(() => {
     const list = listRef.current
     if (!list) return
@@ -117,11 +66,8 @@ export function SearchPalette({
   }, [selected])
 
   function handleSelect(r: SearchResult) {
-    if (r.is_dir) {
-      onNavigate(r.path)
-    } else {
-      onOpenFile(r.path)
-    }
+    if (r.is_dir) onNavigate(r.path)
+    else onOpenFile(r.path)
     onClose()
   }
 

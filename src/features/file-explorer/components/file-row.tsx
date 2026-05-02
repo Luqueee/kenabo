@@ -1,5 +1,16 @@
 import { useDraggable, useDroppable } from "@dnd-kit/core"
-import type { FileRowProps } from "./types"
+import type { FileEntry } from "@/features/filesystem/domain/file-entry"
+
+interface Props {
+  entry: FileEntry
+  isSelected: boolean
+  isCut: boolean
+  isRenaming: boolean
+  onClick: () => void
+  onDoubleClick: () => void
+  onContextMenu: (e: React.MouseEvent) => void
+  children: React.ReactNode
+}
 
 export function FileRow({
   entry,
@@ -10,7 +21,7 @@ export function FileRow({
   onDoubleClick,
   onContextMenu,
   children,
-}: FileRowProps) {
+}: Props) {
   const {
     attributes,
     listeners,

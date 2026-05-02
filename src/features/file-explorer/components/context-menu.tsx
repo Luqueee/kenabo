@@ -9,8 +9,9 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import type { FileContextMenuProps } from "./types"
-import type { FileEntry } from "./types"
+import type { FileEntry } from "@/features/filesystem/domain/file-entry"
+import type { Clipboard as ClipboardState } from "@/features/filesystem/domain/clipboard"
+import type { ContextMenuState } from "../types"
 
 interface MenuItemProps {
   icon?: React.ReactNode
@@ -54,6 +55,20 @@ function MenuDivider() {
   return <div className="my-1 border-t border-border/60" />
 }
 
+interface Props {
+  contextMenu: ContextMenuState
+  clipboard: ClipboardState | null
+  onClose: () => void
+  onActivate: (entry: FileEntry) => void
+  onCopy: (entry: FileEntry) => void
+  onCut: (entry: FileEntry) => void
+  onPaste: () => void
+  onRename: (entry: FileEntry) => void
+  onDelete: (entry: FileEntry) => void
+  onNewFolder: () => void
+  onNewFile: () => void
+}
+
 export function FileContextMenu({
   contextMenu,
   clipboard,
@@ -66,7 +81,7 @@ export function FileContextMenu({
   onDelete,
   onNewFolder,
   onNewFile,
-}: FileContextMenuProps) {
+}: Props) {
   const entry: FileEntry | null = contextMenu.entry
 
   return createPortal(
