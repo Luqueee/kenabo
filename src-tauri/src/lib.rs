@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
@@ -9,9 +9,11 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 use serde::Serialize;
 use tauri::webview::PageLoadEvent;
-use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_opener::OpenerExt;
+
+mod smb;
 
 #[derive(Serialize, Clone)]
 pub struct FileEntry {
@@ -470,6 +472,42 @@ fn launch_macos_terminal(id: &str, path: &str) -> Result<(), String> {
     Err(format!("Unknown terminal: {}", id))
 }
 
+#[derive(Serialize, Clone)]
+pub struct MemoryUsage {
+    pub rss: u64,
+    pub total: u64,
+}
+
+pub struct SysState(Mutex<sysinfo::System>);
+
+impl Default for SysState {
+    fn default() -> Self {
+        use sysinfo::{MemoryRefreshKind, RefreshKind};
+        let sys = sysinfo::System::new_with_specifics(
+            RefreshKind::new().with_memory(MemoryRefreshKind::everything()),
+        );
+        Self(Mutex::new(sys))
+    }
+}
+
+#[tauri::command]
+fn get_memory_usage(state: tauri::State<SysState>) -> Result<MemoryUsage, String> {
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate};
+    let mut sys = state.0.lock().map_err(|e| e.to_string())?;
+    sys.refresh_memory();
+    let pid = Pid::from_u32(std::process::id());
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::Some(&[pid]),
+        true,
+        ProcessRefreshKind::new().with_memory(),
+    );
+    let rss = sys.process(pid).map(|p| p.memory()).unwrap_or(0);
+    Ok(MemoryUsage {
+        rss,
+        total: sys.total_memory(),
+    })
+}
+
 #[tauri::command]
 fn open_terminal(path: String, terminal_id: Option<String>) -> Result<(), String> {
     use std::process::Command;
@@ -575,6 +613,29 @@ pub fn run() {
 
             let window = win_builder.build().unwrap();
 
+            let smb_path: PathBuf = app
+                .path()
+                .app_config_dir()
+                .map(|d| d.join("smb.json"))
+                .unwrap_or_else(|_| PathBuf::from("smb.json"));
+            let smb_state = smb::SmbState::new(smb_path);
+            let auto_mounts: Vec<smb::SmbShare> = smb_state
+                .config
+                .lock()
+                .map(|c| c.shares.iter().filter(|s| s.auto_mount).cloned().collect())
+                .unwrap_or_default();
+            std::thread::spawn(move || {
+                for share in auto_mounts {
+                    if smb::mount_point_for(&share).exists() {
+                        continue;
+                    }
+                    if let Err(e) = smb::run_mount(&share) {
+                        log::warn!("auto-mount {} failed: {}", share.name, e);
+                    }
+                }
+            });
+            app.manage(smb_state);
+
             #[cfg(target_os = "macos")]
             {
                 use cocoa::appkit::{NSColor, NSWindow};
@@ -596,6 +657,7 @@ pub fn run() {
             Ok(())
         })
         .manage(SearchIndex::default())
+        .manage(SysState::default())
         .invoke_handler(tauri::generate_handler![
             list_directory,
             get_home_dir,
@@ -610,7 +672,14 @@ pub fn run() {
             copy_entry,
             move_entry,
             open_terminal,
-            list_terminals
+            list_terminals,
+            get_memory_usage,
+            smb::smb_list,
+            smb::smb_save,
+            smb::smb_delete,
+            smb::smb_mount,
+            smb::smb_unmount,
+            smb::smb_is_mounted
         ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {

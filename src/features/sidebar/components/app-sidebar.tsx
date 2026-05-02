@@ -17,6 +17,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
+import { SmbSection } from "@/features/smb/components/smb-section"
 
 interface Props extends React.ComponentProps<typeof Sidebar> {
   homeDir: string | null
@@ -88,6 +89,8 @@ export function AppSidebar({
             })}
           </SidebarMenu>
         </SidebarGroup>
+
+        <SmbSection currentPath={currentPath} onNavigate={onNavigate} />
 
         <SidebarGroup>
           <SidebarGroupLabel>Dispositivos</SidebarGroupLabel>

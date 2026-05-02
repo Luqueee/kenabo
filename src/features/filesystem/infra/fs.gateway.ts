@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core"
 import type { FileEntry, SearchResult } from "../domain/file-entry"
+import type { SmbShare } from "@/features/smb/domain/share"
 
 export const fsGateway = {
   list: (path: string) => invoke<FileEntry[]>("list_directory", { path }),
@@ -20,4 +21,11 @@ export const fsGateway = {
     invoke<void>("open_terminal", { path, terminalId: terminalId ?? null }),
   listTerminals: () =>
     invoke<{ id: string; name: string }[]>("list_terminals"),
+  smbList: () => invoke<SmbShare[]>("smb_list"),
+  smbSave: (share: SmbShare, password?: string | null) =>
+    invoke<SmbShare>("smb_save", { share, password: password ?? null }),
+  smbDelete: (id: string) => invoke<void>("smb_delete", { id }),
+  smbMount: (id: string) => invoke<string>("smb_mount", { id }),
+  smbUnmount: (id: string) => invoke<void>("smb_unmount", { id }),
+  smbIsMounted: (id: string) => invoke<boolean>("smb_is_mounted", { id }),
 }
