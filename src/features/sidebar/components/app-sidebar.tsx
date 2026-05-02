@@ -14,6 +14,7 @@ import {
   SidebarGroup,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
@@ -65,25 +66,24 @@ export function AppSidebar({
             {favorites.map((favPath) => {
               const label = favPath.split("/").filter(Boolean).at(-1) ?? favPath
               return (
-                <SidebarMenuItem key={favPath}>
+                <SidebarMenuItem key={favPath} className="group/fav">
                   <SidebarMenuButton
                     isActive={currentPath === favPath}
                     onClick={() => onNavigate(favPath)}
-                    className="group/fav pr-1"
                   >
                     <Star className="h-4 w-4 shrink-0" />
                     <span className="flex-1 truncate">{label}</span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onRemoveFavorite(favPath)
-                      }}
-                      className="ml-auto hidden rounded p-0.5 group-hover/fav:flex hover:bg-sidebar-accent-foreground/10"
-                      title="Quitar de favoritos"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
                   </SidebarMenuButton>
+                  <SidebarMenuAction
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onRemoveFavorite(favPath)
+                    }}
+                    title="Quitar de favoritos"
+                    className="hidden group-hover/fav:flex"
+                  >
+                    <X className="h-3 w-3" />
+                  </SidebarMenuAction>
                 </SidebarMenuItem>
               )
             })}

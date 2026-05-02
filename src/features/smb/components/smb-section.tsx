@@ -5,6 +5,7 @@ import {
   SidebarGroupAction,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
@@ -85,11 +86,10 @@ export function SmbSection({ currentPath, onNavigate }: Props) {
             const path = smbMountPath(s)
             const active = currentPath === path
             return (
-              <SidebarMenuItem key={s.id}>
+              <SidebarMenuItem key={s.id} className="group/smb">
                 <SidebarMenuButton
                   isActive={active}
                   onClick={() => handleClick(s)}
-                  className="group/smb pr-1"
                   title={`smb://${s.host}/${s.share}`}
                 >
                   {isBusy ? (
@@ -100,44 +100,43 @@ export function SmbSection({ currentPath, onNavigate }: Props) {
                     />
                   )}
                   <span className="flex-1 truncate">{s.name}</span>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={(e) => e.stopPropagation()}
-                        className="ml-auto rounded p-0.5 opacity-0 group-hover/smb:opacity-100 hover:bg-sidebar-accent-foreground/10"
-                        title="Opciones"
-                      >
-                        <span className="text-xs">⋯</span>
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      {isMounted ? (
-                        <DropdownMenuItem onClick={() => handleUnmount(s)}>
-                          <Unplug className="h-4 w-4" />
-                          Desmontar
-                        </DropdownMenuItem>
-                      ) : (
-                        <DropdownMenuItem onClick={() => handleClick(s)}>
-                          <Plug className="h-4 w-4" />
-                          Montar
-                        </DropdownMenuItem>
-                      )}
-                      <DropdownMenuItem onClick={() => openEdit(s)}>
-                        <Pencil className="h-4 w-4" />
-                        Editar
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem
-                        onClick={() => remove(s.id)}
-                        variant="destructive"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                        Eliminar
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </SidebarMenuButton>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuAction
+                      onClick={(e) => e.stopPropagation()}
+                      title="Opciones"
+                      className="opacity-0 group-hover/smb:opacity-100 data-[state=open]:opacity-100"
+                    >
+                      <span className="text-xs">⋯</span>
+                    </SidebarMenuAction>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                    {isMounted ? (
+                      <DropdownMenuItem onClick={() => handleUnmount(s)}>
+                        <Unplug className="h-4 w-4" />
+                        Desmontar
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem onClick={() => handleClick(s)}>
+                        <Plug className="h-4 w-4" />
+                        Montar
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => openEdit(s)}>
+                      <Pencil className="h-4 w-4" />
+                      Editar
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => remove(s.id)}
+                      variant="destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      Eliminar
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </SidebarMenuItem>
             )
           })}

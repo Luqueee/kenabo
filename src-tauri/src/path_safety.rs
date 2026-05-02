@@ -63,3 +63,67 @@ pub fn reject_traversal(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rejects_empty_name() {
+        assert!(validate_filename("").is_err());
+    }
+
+    #[test]
+    fn rejects_dot_names() {
+        assert!(validate_filename(".").is_err());
+        assert!(validate_filename("..").is_err());
+    }
+
+    #[test]
+    fn rejects_path_separators() {
+        assert!(validate_filename("a/b").is_err());
+        assert!(validate_filename("a\\b").is_err());
+    }
+
+    #[test]
+    fn rejects_null_byte() {
+        assert!(validate_filename("a\0b").is_err());
+    }
+
+    #[test]
+    fn accepts_normal_names() {
+        assert!(validate_filename("foo.txt").is_ok());
+        assert!(validate_filename("hidden.dotfile").is_ok());
+        assert!(validate_filename("with spaces.md").is_ok());
+        assert!(validate_filename("über.txt").is_ok());
+    }
+
+    #[test]
+    fn traversal_blocks_parent_dir() {
+        assert!(reject_traversal(Path::new("foo/../bar")).is_err());
+        assert!(reject_traversal(Path::new("..")).is_err());
+        assert!(reject_traversal(Path::new("a/b/../c")).is_err());
+    }
+
+    #[test]
+    fn traversal_allows_clean_paths() {
+        assert!(reject_traversal(Path::new("/a/b/c")).is_ok());
+        assert!(reject_traversal(Path::new("foo/bar/baz.txt")).is_ok());
+    }
+
+    #[test]
+    fn ensure_within_blocks_escape() {
+        let tmp = std::env::temp_dir();
+        let outside = tmp.parent().unwrap_or(Path::new("/")).join("escapee");
+        let result = ensure_within(&tmp, &outside);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn ensure_within_accepts_child() {
+        let tmp = std::env::temp_dir();
+        let child = tmp.join("inside.txt");
+        // Path no existe pero parent canoniza OK
+        assert!(ensure_within(&tmp, &child).is_ok());
+    }
+}
