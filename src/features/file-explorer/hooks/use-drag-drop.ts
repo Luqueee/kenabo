@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   MouseSensor,
   TouchSensor,
@@ -12,10 +12,26 @@ import { joinPath } from "@/features/filesystem/domain/path"
 
 interface Ops {
   move: (src: string, dest: string) => Promise<void>
+  copy: (src: string, dest: string) => Promise<void>
 }
 
 export function useDragDrop(ops: Ops) {
   const [draggingEntry, setDraggingEntry] = useState<FileEntry | null>(null)
+  const [copyMode, setCopyMode] = useState(false)
+  const isDraggingRef = useRef(false)
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!isDraggingRef.current) return
+      setCopyMode(e.altKey || e.ctrlKey)
+    }
+    window.addEventListener("keydown", onKey)
+    window.addEventListener("keyup", onKey)
+    return () => {
+      window.removeEventListener("keydown", onKey)
+      window.removeEventListener("keyup", onKey)
+    }
+  }, [])
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
@@ -24,11 +40,19 @@ export function useDragDrop(ops: Ops) {
 
   function handleDragStart(event: DragStartEvent) {
     const entry = event.active.data.current?.entry as FileEntry | undefined
-    if (entry) setDraggingEntry(entry)
+    if (entry) {
+      setDraggingEntry(entry)
+      isDraggingRef.current = true
+      setCopyMode(false)
+    }
   }
 
   async function handleDragEnd(event: DragEndEvent) {
+    const wasCopy = copyMode
     setDraggingEntry(null)
+    setCopyMode(false)
+    isDraggingRef.current = false
+
     const { active, over } = event
     if (!over) return
     const src = active.data.current?.entry as FileEntry | undefined
@@ -38,23 +62,30 @@ export function useDragDrop(ops: Ops) {
     if (navPath) {
       if (src.path === navPath) return
       if (navPath.startsWith(src.path + "/")) return
-      await ops.move(src.path, joinPath(navPath, src.name))
+      const dest = joinPath(navPath, src.name)
+      if (wasCopy) await ops.copy(src.path, dest)
+      else await ops.move(src.path, dest)
       return
     }
 
-    const dest = over.data.current?.entry as FileEntry | undefined
-    if (!dest || !dest.is_dir) return
-    if (src.path === dest.path) return
-    if (src.path.startsWith(dest.path + "/")) return
-    await ops.move(src.path, joinPath(dest.path, src.name))
+    const destEntry = over.data.current?.entry as FileEntry | undefined
+    if (!destEntry || !destEntry.is_dir) return
+    if (src.path === destEntry.path) return
+    if (src.path.startsWith(destEntry.path + "/")) return
+    const dest = joinPath(destEntry.path, src.name)
+    if (wasCopy) await ops.copy(src.path, dest)
+    else await ops.move(src.path, dest)
   }
 
   function handleDragCancel() {
     setDraggingEntry(null)
+    setCopyMode(false)
+    isDraggingRef.current = false
   }
 
   return {
     draggingEntry,
+    copyMode,
     sensors,
     handleDragStart,
     handleDragEnd,

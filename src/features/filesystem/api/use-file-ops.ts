@@ -65,6 +65,9 @@ export function useFileOps(
         }
       }),
 
+    copy: (src: string, dest: string) =>
+      wrap(() => fsGateway.copy(src, dest)),
+
     move: (src: string, dest: string) =>
       wrap(async () => {
         await fsGateway.move(src, dest)

@@ -4,32 +4,47 @@ import type { FileEntry } from "../domain/file-entry"
 import { fsErrorMessage } from "../domain/fs-error"
 import { logger } from "@/shared/lib/logger"
 
+const PAGE_SIZE = 2_000
+
 export function useDirectory(path: string) {
   const [entries, setEntries] = useState<FileEntry[]>([])
+  const [total, setTotal] = useState(0)
+  const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const load = useCallback(async (p: string) => {
+  const load = useCallback(async (p: string, off = 0) => {
     setLoading(true)
-    setError(null)
+    if (off === 0) setError(null)
     try {
-      const result = await fsGateway.list(p)
-      setEntries(result)
+      const page = await fsGateway.list(p, { limit: PAGE_SIZE, offset: off })
+      setEntries((prev) => off === 0 ? page.entries : [...prev, ...page.entries])
+      setTotal(page.total)
+      setOffset(off + page.entries.length)
     } catch (e) {
       setError(fsErrorMessage(e))
-      setEntries([])
+      if (off === 0) setEntries([])
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load(path)
+    load(path, 0)
   }, [path, load])
 
-  const reload = useCallback(() => load(path), [path, load])
+  const reload = useCallback(() => {
+    setOffset(0)
+    return load(path, 0)
+  }, [path, load])
 
-  return { entries, loading, error, reload }
+  const loadMore = useCallback(() => {
+    return load(path, offset)
+  }, [path, offset, load])
+
+  const hasMore = offset < total
+
+  return { entries, loading, error, reload, total, hasMore, loadMore }
 }
 
 export function useHomeDir() {

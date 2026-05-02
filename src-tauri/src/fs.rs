@@ -1,7 +1,7 @@
 use std::path::Path;
 use std::time::SystemTime;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use tauri_plugin_opener::OpenerExt;
 
 use crate::path_safety::{ensure_within, reject_traversal, validate_filename};
@@ -16,11 +16,33 @@ pub struct FileEntry {
     pub extension: Option<String>,
 }
 
+const DEFAULT_PAGE_SIZE: usize = 2_000;
+
+#[derive(Serialize, Clone)]
+pub struct DirectoryPage {
+    pub entries: Vec<FileEntry>,
+    pub total: usize,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+#[derive(Deserialize)]
+pub struct ListOptions {
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+}
+
 #[tauri::command]
-pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
+pub fn list_directory(
+    path: String,
+    options: Option<ListOptions>,
+) -> Result<DirectoryPage, String> {
+    let limit = options.as_ref().and_then(|o| o.limit).unwrap_or(DEFAULT_PAGE_SIZE);
+    let offset = options.as_ref().and_then(|o| o.offset).unwrap_or(0);
+
     let dir = Path::new(&path);
 
-    let mut entries: Vec<FileEntry> = std::fs::read_dir(dir)
+    let mut all: Vec<FileEntry> = std::fs::read_dir(dir)
         .map_err(|e| e.to_string())?
         .filter_map(|e| e.ok())
         .filter_map(|entry| {
@@ -55,13 +77,16 @@ pub fn list_directory(path: String) -> Result<Vec<FileEntry>, String> {
         })
         .collect();
 
-    entries.sort_by(|a, b| match (a.is_dir, b.is_dir) {
+    all.sort_by(|a, b| match (a.is_dir, b.is_dir) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
-    Ok(entries)
+    let total = all.len();
+    let entries = all.into_iter().skip(offset).take(limit).collect();
+
+    Ok(DirectoryPage { entries, total, offset, limit })
 }
 
 #[tauri::command]

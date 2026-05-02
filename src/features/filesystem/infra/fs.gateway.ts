@@ -2,8 +2,16 @@ import { invoke } from "@tauri-apps/api/core"
 import type { FileEntry, SearchResult } from "../domain/file-entry"
 import type { SmbShare } from "@/features/smb/domain/share"
 
+export interface DirectoryPage {
+  entries: FileEntry[]
+  total: number
+  offset: number
+  limit: number
+}
+
 export const fsGateway = {
-  list: (path: string) => invoke<FileEntry[]>("list_directory", { path }),
+  list: (path: string, options?: { limit?: number; offset?: number }) =>
+    invoke<DirectoryPage>("list_directory", { path, options: options ?? null }),
   home: () => invoke<string>("get_home_dir"),
   open: (path: string) => invoke<void>("open_file", { path }),
   search: (root: string, query: string) =>

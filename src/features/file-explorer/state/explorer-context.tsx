@@ -46,6 +46,9 @@ interface Value {
   loading: boolean
   error: string | null
   reload: () => void
+  total: number
+  hasMore: boolean
+  loadMore: () => void
 
   selected: string | null
   setSelected: (p: string | null) => void
@@ -87,6 +90,7 @@ interface Value {
   confirmDelete: () => Promise<void>
 
   draggingEntry: FileEntry | null
+  dragCopyMode: boolean
 
   viewMode: ViewMode
   setViewMode: (m: ViewMode) => void
@@ -137,7 +141,7 @@ export function FileExplorerProvider({
   onOpenSettings,
   children,
 }: ProviderProps) {
-  const { entries, loading, error, reload } = useDirectory(path)
+  const { entries, loading, error, reload, total, hasMore, loadMore } = useDirectory(path)
   const { clipboard, copy, cut, clear: clearClipboard, hasPath: clipboardHas } = useClipboard()
   const undoStack = useUndoStack()
   const ops = useFileOps(reload, undoStack)
@@ -357,6 +361,9 @@ export function FileExplorerProvider({
     loading,
     error,
     reload,
+    total,
+    hasMore,
+    loadMore,
     selected,
     setSelected,
     selectedPaths: selection.selectedPaths,
@@ -391,6 +398,7 @@ export function FileExplorerProvider({
     confirmDelete,
     clipboardHas,
     draggingEntry: dnd.draggingEntry,
+    dragCopyMode: dnd.copyMode,
     viewMode,
     setViewMode,
     terminalId,
@@ -428,6 +436,11 @@ export function FileExplorerProvider({
                 extension={dnd.draggingEntry.extension}
               />
               <span className="max-w-48 truncate">{dnd.draggingEntry.name}</span>
+              {dnd.copyMode && (
+                <span className="ml-1 rounded bg-primary/20 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                  Copiar
+                </span>
+              )}
             </div>
           )}
         </DragOverlay>

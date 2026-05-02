@@ -20,6 +20,9 @@ export function StatusFooter() {
     filterQuery,
     clipboard,
     selectedPaths,
+    hasMore,
+    loadMore,
+    total,
   } = useFileExplorer()
   const memory = useMemoryUsage()
 
@@ -39,6 +42,15 @@ export function StatusFooter() {
             {dirCount} {dirCount === 1 ? "carpeta" : "carpetas"} · {fileCount}{" "}
             {fileCount === 1 ? "archivo" : "archivos"}
             {filterQuery && ` (filtrado de ${totalCount})`}
+            {hasMore && (
+              <button
+                onClick={loadMore}
+                disabled={loading}
+                className="text-primary underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                +{(total - totalCount).toLocaleString()} más
+              </button>
+            )}
             {selectedPaths.size > 1 && (
               <span className="ml-3 text-primary">
                 {selectedPaths.size} seleccionados
