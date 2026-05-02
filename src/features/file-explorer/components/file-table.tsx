@@ -4,6 +4,7 @@ import { formatSize, formatDate } from "@/shared/lib/format"
 import { useFileExplorer } from "../state/explorer-context"
 import { FileIcon } from "./file-icon"
 import { FileRow } from "./file-row"
+import { FileGrid } from "./file-grid"
 import { InlineEditInput } from "./inline-edit-input"
 
 export function FileTable() {
@@ -26,6 +27,7 @@ export function FileTable() {
     cancelInline,
     handleActivate,
     openContextMenu,
+    viewMode,
   } = useFileExplorer()
 
   const showTable =
@@ -81,7 +83,9 @@ export function FileTable() {
           </div>
         )}
 
-      {!error && showTable && (
+      {!error && showTable && viewMode === "grid" && <FileGrid />}
+
+      {!error && showTable && viewMode === "list" && (
         <table className="w-full text-sm">
           <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
             <tr className="border-b border-border/60">

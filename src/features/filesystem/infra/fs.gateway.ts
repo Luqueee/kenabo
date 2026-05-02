@@ -16,4 +16,8 @@ export const fsGateway = {
   delete: (path: string) => invoke<void>("delete_entry", { path }),
   copy: (src: string, dest: string) => invoke<void>("copy_entry", { src, dest }),
   move: (src: string, dest: string) => invoke<void>("move_entry", { src, dest }),
+  openTerminal: (path: string, terminalId?: string | null) =>
+    invoke<void>("open_terminal", { path, terminalId: terminalId ?? null }),
+  listTerminals: () =>
+    invoke<{ id: string; name: string }[]>("list_terminals"),
 }

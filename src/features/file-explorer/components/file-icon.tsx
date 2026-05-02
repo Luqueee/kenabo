@@ -140,9 +140,15 @@ interface Props {
 }
 
 export function FileIcon({ name, isDir, extension, size = 16 }: Props) {
-  const cls = "h-4 w-4 shrink-0"
+  const cls = `shrink-0`
+  const style = { width: size, height: size }
   if (isDir)
-    return <Folder className={`${cls} fill-blue-300/40 text-blue-300`} />
+    return (
+      <Folder
+        className={`${cls} fill-blue-300/40 text-blue-300`}
+        style={style}
+      />
+    )
 
   const nameIcon = FILENAME_ICON[name]
   if (nameIcon) return <Icon icon={nameIcon} width={size} height={size} />
@@ -150,5 +156,5 @@ export function FileIcon({ name, isDir, extension, size = 16 }: Props) {
   const extIcon = extension ? EXT_ICON[extension] : null
   if (extIcon) return <Icon icon={extIcon} width={size} height={size} />
 
-  return <File className={`${cls} text-muted-foreground`} />
+  return <File className={`${cls} text-muted-foreground`} style={style} />
 }

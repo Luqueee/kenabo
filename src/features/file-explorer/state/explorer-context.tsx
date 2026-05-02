@@ -34,6 +34,14 @@ import type { ContextMenuState } from "../types"
 import { FileIcon } from "../components/file-icon"
 
 export type InlineMode = null | "rename" | "newFolder" | "newFile"
+export type ViewMode = "list" | "grid"
+
+const VIEW_MODE_KEY = "file-explorer:view-mode"
+function readViewMode(): ViewMode {
+  if (typeof window === "undefined") return "list"
+  const v = window.localStorage.getItem(VIEW_MODE_KEY)
+  return v === "grid" ? "grid" : "list"
+}
 
 interface Value {
   path: string
@@ -83,6 +91,12 @@ interface Value {
 
   draggingEntry: FileEntry | null
 
+  viewMode: ViewMode
+  setViewMode: (m: ViewMode) => void
+
+  terminalId: string | null
+  onOpenSettings: () => void
+
   segments: PathSegment[]
   parent: string | null
   dirCount: number
@@ -107,6 +121,8 @@ interface ProviderProps {
   onOpenSearch: () => void
   onAddFavorite: (path: string) => void
   isFavorite: boolean
+  terminalId: string | null
+  onOpenSettings: () => void
   children: ReactNode
 }
 
@@ -116,6 +132,8 @@ export function FileExplorerProvider({
   onOpenSearch,
   onAddFavorite,
   isFavorite,
+  terminalId,
+  onOpenSettings,
   children,
 }: ProviderProps) {
   const { entries, loading, error, reload } = useDirectory(path)
@@ -127,6 +145,13 @@ export function FileExplorerProvider({
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
   const [draggingEntry, setDraggingEntry] = useState<FileEntry | null>(null)
+  const [viewMode, setViewModeState] = useState<ViewMode>(readViewMode)
+
+  function setViewMode(m: ViewMode) {
+    setViewModeState(m)
+    if (typeof window !== "undefined")
+      window.localStorage.setItem(VIEW_MODE_KEY, m)
+  }
 
   const [inlineMode, setInlineMode] = useState<InlineMode>(null)
   const [inlineTarget, setInlineTarget] = useState<string | null>(null)
@@ -410,6 +435,10 @@ export function FileExplorerProvider({
     setDeleteTarget,
     confirmDelete,
     draggingEntry,
+    viewMode,
+    setViewMode,
+    terminalId,
+    onOpenSettings,
     segments,
     parent,
     dirCount,

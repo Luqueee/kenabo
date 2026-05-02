@@ -11,6 +11,8 @@ import { StatusFooter } from "@/features/file-explorer/components/status-footer"
 import { FileContextMenu } from "@/features/file-explorer/components/context-menu"
 import { FileExplorerProvider } from "@/features/file-explorer/state/explorer-context"
 import { SearchPalette } from "@/features/search/components/search-palette"
+import { SettingsPanel } from "@/features/settings/components/settings-panel"
+import { useSettings } from "@/features/settings/api/use-settings"
 import { useHomeDir } from "@/features/filesystem/api/use-directory"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import { useHistory } from "@/features/navigation/api/use-history"
@@ -26,6 +28,8 @@ export default function App() {
   const { current: currentPath, navigate, back, forward } = useHistory(homeDir)
   const { favorites, add, remove, isFavorite } = useFavorites()
   const [searchOpen, setSearchOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settings = useSettings()
 
   const handleOpenFile = useCallback((p: string) => {
     fsGateway.open(p).catch(console.error)
@@ -61,6 +65,8 @@ export default function App() {
           onOpenSearch={() => setSearchOpen(true)}
           onAddFavorite={add}
           isFavorite={isFavorite(currentPath)}
+          terminalId={settings.terminalId}
+          onOpenSettings={() => setSettingsOpen(true)}
         >
           <SidebarProvider
             className="flex h-svh w-full flex-col overflow-hidden bg-background"
@@ -93,6 +99,16 @@ export default function App() {
           Cargando...
         </div>
       )}
+
+      <SettingsPanel
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        terminals={settings.terminals}
+        loadingTerminals={settings.loadingTerminals}
+        terminalId={settings.terminalId}
+        setTerminalId={settings.setTerminalId}
+        refreshTerminals={settings.refreshTerminals}
+      />
 
       <SearchPalette
         root={currentPath ?? homeDir ?? "/"}

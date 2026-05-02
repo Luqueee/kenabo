@@ -1,5 +1,17 @@
+import { useEffect, useRef, useState } from "react"
 import { useDroppable } from "@dnd-kit/core"
-import { ArrowUp, RefreshCw, Search, Star } from "lucide-react"
+import {
+  ArrowUp,
+  LayoutGrid,
+  List,
+  Pencil,
+  RefreshCw,
+  Search,
+  Settings,
+  Star,
+  Terminal,
+} from "lucide-react"
+import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -67,7 +79,10 @@ function DroppableBreadcrumbLink({
   return (
     <span
       ref={setNodeRef}
-      onClick={() => onNavigate(seg.path)}
+      onClick={(e) => {
+        e.stopPropagation()
+        onNavigate(seg.path)
+      }}
       className={`cursor-pointer rounded px-1 py-0.5 text-sm text-muted-foreground transition-colors hover:text-foreground ${
         isOver
           ? "bg-primary/15 text-foreground ring-1 ring-primary"
@@ -93,8 +108,41 @@ export function Toolbar() {
     onAddFavorite,
     onOpenSearch,
     path,
+    viewMode,
+    setViewMode,
+    terminalId,
+    onOpenSettings,
   } = useFileExplorer()
   const isDragging = draggingEntry !== null
+
+  const [editingPath, setEditingPath] = useState(false)
+  const [pathDraft, setPathDraft] = useState("")
+  const pathInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    if (editingPath) {
+      pathInputRef.current?.focus()
+      pathInputRef.current?.select()
+    }
+  }, [editingPath])
+
+  async function startPathEdit() {
+    setPathDraft(path)
+    setEditingPath(true)
+    try {
+      await navigator.clipboard.writeText(path)
+    } catch {}
+  }
+
+  function commitPathEdit() {
+    const trimmed = pathDraft.trim()
+    setEditingPath(false)
+    if (trimmed && trimmed !== path) onNavigate(trimmed)
+  }
+
+  function openTerminal() {
+    fsGateway.openTerminal(path, terminalId).catch(console.error)
+  }
 
   return (
     <header
@@ -134,54 +182,123 @@ export function Toolbar() {
       </Button>
       <Separator orientation="vertical" className="mx-1 h-full" />
 
-      <Breadcrumb className="min-w-0 flex-1 overflow-hidden">
-        <BreadcrumbList className="flex-nowrap">
-          {(segments.length > 6
-            ? [segments[0], null, ...segments.slice(-4)]
-            : segments
-          ).map((seg, i, arr) => {
-            if (seg === null) {
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={startPathEdit}
+        title="Copiar y editar ruta"
+      >
+        <Pencil className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={openTerminal}
+        title="Abrir terminal aquí"
+      >
+        <Terminal className="h-4 w-4" />
+      </Button>
+      <Separator orientation="vertical" className="mx-1 h-full" />
+
+      {editingPath ? (
+        <input
+          ref={pathInputRef}
+          value={pathDraft}
+          onChange={(e) => setPathDraft(e.target.value)}
+          onBlur={commitPathEdit}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault()
+              commitPathEdit()
+            } else if (e.key === "Escape") {
+              e.preventDefault()
+              setEditingPath(false)
+            }
+          }}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          className="min-w-0 flex-1 rounded border border-border/60 bg-background px-2 py-1 font-mono text-xs outline-none focus:border-primary"
+        />
+      ) : (
+        <Breadcrumb
+          className="min-w-0 flex-1 cursor-text overflow-hidden"
+          onClick={startPathEdit}
+          title="Editar ruta"
+        >
+          <BreadcrumbList className="flex-nowrap">
+            {(segments.length > 6
+              ? [segments[0], null, ...segments.slice(-4)]
+              : segments
+            ).map((seg, i, arr) => {
+              if (seg === null) {
+                return (
+                  <div
+                    key="ellipsis"
+                    className="flex shrink-0 items-center gap-1.5"
+                  >
+                    <BreadcrumbItem>
+                      <span className="px-1 text-sm text-muted-foreground">
+                        …
+                      </span>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                  </div>
+                )
+              }
+              const isLast = i === arr.length - 1
               return (
                 <div
-                  key="ellipsis"
-                  className="flex shrink-0 items-center gap-1.5"
+                  key={seg.path}
+                  className={`flex items-center gap-1.5 ${isLast ? "min-w-0 overflow-hidden" : "shrink-0"}`}
                 >
-                  <BreadcrumbItem>
-                    <span className="px-1 text-sm text-muted-foreground">
-                      …
-                    </span>
+                  <BreadcrumbItem
+                    className={isLast ? "min-w-0 overflow-hidden" : ""}
+                  >
+                    {isLast ? (
+                      <BreadcrumbPage className="block truncate font-medium">
+                        {seg.label}
+                      </BreadcrumbPage>
+                    ) : (
+                      <DroppableBreadcrumbLink
+                        seg={seg}
+                        isDragging={isDragging}
+                        onNavigate={onNavigate}
+                      />
+                    )}
                   </BreadcrumbItem>
-                  <BreadcrumbSeparator />
+                  {!isLast && <BreadcrumbSeparator />}
                 </div>
               )
-            }
-            const isLast = i === arr.length - 1
-            return (
-              <div
-                key={seg.path}
-                className={`flex items-center gap-1.5 ${isLast ? "min-w-0 overflow-hidden" : "shrink-0"}`}
-              >
-                <BreadcrumbItem
-                  className={isLast ? "min-w-0 overflow-hidden" : ""}
-                >
-                  {isLast ? (
-                    <BreadcrumbPage className="block truncate font-medium">
-                      {seg.label}
-                    </BreadcrumbPage>
-                  ) : (
-                    <DroppableBreadcrumbLink
-                      seg={seg}
-                      isDragging={isDragging}
-                      onNavigate={onNavigate}
-                    />
-                  )}
-                </BreadcrumbItem>
-                {!isLast && <BreadcrumbSeparator />}
-              </div>
-            )
-          })}
-        </BreadcrumbList>
-      </Breadcrumb>
+            })}
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
+
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={() => setViewMode(viewMode === "list" ? "grid" : "list")}
+        title={viewMode === "list" ? "Vista cuadrícula" : "Vista lista"}
+      >
+        {viewMode === "list" ? (
+          <LayoutGrid className="h-4 w-4" />
+        ) : (
+          <List className="h-4 w-4" />
+        )}
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8"
+        onClick={onOpenSettings}
+        title="Configuración"
+      >
+        <Settings className="h-4 w-4" />
+      </Button>
 
       <Button
         variant="outline"
