@@ -58,6 +58,10 @@ export function FileTile({
       onContextMenu={onContextMenu}
       {...attributes}
       {...listeners}
+      role="button"
+      aria-pressed={isSelected}
+      aria-label={`${entry.is_dir ? "Carpeta" : "Archivo"} ${entry.name}`}
+      tabIndex={isSelected ? 0 : -1}
     >
       {children}
     </div>

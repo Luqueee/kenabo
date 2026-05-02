@@ -30,6 +30,7 @@ function MenuItem({
 }: MenuItemProps) {
   return (
     <button
+      role="menuitem"
       disabled={disabled}
       onClick={onClick}
       className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm disabled:opacity-40 ${
@@ -91,6 +92,8 @@ export function FileContextMenu() {
         }}
       />
       <div
+        role="menu"
+        aria-label="Acciones de archivo"
         className="fixed z-50 min-w-50 overflow-hidden rounded-lg border border-border/80 bg-popover py-1 shadow-xl"
         style={{ left: contextMenu.x, top: contextMenu.y }}
       >

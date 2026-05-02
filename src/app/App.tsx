@@ -17,6 +17,7 @@ import { useHomeDir } from "@/features/filesystem/api/use-directory"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import { useHistory } from "@/features/navigation/api/use-history"
 import { useFavorites } from "@/features/navigation/api/use-favorites"
+import { logger } from "@/shared/lib/logger"
 
 const sidebarStyle = {
   "--sidebar-width": "calc(var(--spacing) * 56)",
@@ -32,7 +33,7 @@ export default function App() {
   const settings = useSettings()
 
   const handleOpenFile = useCallback((p: string) => {
-    fsGateway.open(p).catch(console.error)
+    fsGateway.open(p).catch((e) => logger.error("open failed", e))
   }, [])
 
   useAction("search.toggle", () => setSearchOpen((v) => !v), { ignoreInputs: false })

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react"
 import { fsGateway } from "../infra/fs.gateway"
 import type { FileEntry } from "../domain/file-entry"
 import { fsErrorMessage } from "../domain/fs-error"
+import { logger } from "@/shared/lib/logger"
 
 export function useDirectory(path: string) {
   const [entries, setEntries] = useState<FileEntry[]>([])
@@ -34,7 +35,7 @@ export function useDirectory(path: string) {
 export function useHomeDir() {
   const [home, setHome] = useState<string | null>(null)
   useEffect(() => {
-    fsGateway.home().then(setHome).catch(console.error)
+    fsGateway.home().then(setHome).catch((e) => logger.error("home failed", e))
   }, [])
   return home
 }

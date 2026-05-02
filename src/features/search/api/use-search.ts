@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import type { SearchResult } from "@/features/filesystem/domain/file-entry"
+import { logger } from "@/shared/lib/logger"
 
 export function useSearchIndex(root: string, enabled: boolean) {
   const [indexing, setIndexing] = useState(false)
@@ -17,7 +18,7 @@ export function useSearchIndex(root: string, enabled: boolean) {
         if (!cancelled) setSize(n)
       })
       .catch((e) => {
-        if (!cancelled) console.error(e)
+        if (!cancelled) logger.error("index failed", e)
       })
       .finally(() => {
         if (!cancelled) setIndexing(false)
@@ -53,7 +54,7 @@ export function useSearch(root: string, query: string, enabled: boolean) {
         })
         .catch((e) => {
           if (myReq !== reqIdRef.current) return
-          console.error(e)
+          logger.error("search failed", e)
           setResults([])
         })
         .finally(() => {

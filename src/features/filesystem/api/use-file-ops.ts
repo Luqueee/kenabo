@@ -3,6 +3,7 @@ import { fsGateway } from "../infra/fs.gateway"
 import { joinPath } from "../domain/path"
 import type { Clipboard } from "../domain/clipboard"
 import { fsErrorMessage } from "../domain/fs-error"
+import { logger } from "@/shared/lib/logger"
 
 export function useFileOps(onMutate: () => Promise<void> | void) {
   const [opError, setOpError] = useState<string | null>(null)
@@ -44,6 +45,7 @@ export function useFileOps(onMutate: () => Promise<void> | void) {
       wrap(async () => {
         for (const p of paths) await fsGateway.delete(p)
       }),
-    open: (path: string) => fsGateway.open(path).catch(console.error),
+    open: (path: string) =>
+      fsGateway.open(path).catch((e) => logger.error("open failed", e)),
   }
 }

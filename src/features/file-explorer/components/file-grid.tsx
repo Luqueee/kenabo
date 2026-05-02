@@ -24,6 +24,8 @@ export function FileGrid() {
   return (
     <div
       className="grid gap-2 p-3"
+      role="listbox"
+      aria-multiselectable="true"
       style={{
         gridTemplateColumns: "repeat(auto-fill, minmax(110px, 1fr))",
       }}

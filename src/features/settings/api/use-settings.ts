@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
+import { logger } from "@/shared/lib/logger"
 
 export interface TerminalInfo {
   id: string
@@ -24,7 +25,7 @@ export function useSettings() {
       const list = await fsGateway.listTerminals()
       setTerminals(list)
     } catch (err) {
-      console.error("listTerminals failed", err)
+      logger.error("listTerminals failed", err)
     } finally {
       setLoadingTerminals(false)
     }

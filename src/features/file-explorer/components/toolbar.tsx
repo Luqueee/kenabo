@@ -13,6 +13,7 @@ import {
   Terminal,
 } from "lucide-react"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
+import { logger } from "@/shared/lib/logger"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -142,7 +143,7 @@ export function Toolbar() {
   }
 
   function openTerminal() {
-    fsGateway.openTerminal(path, terminalId).catch(console.error)
+    fsGateway.openTerminal(path, terminalId).catch((e) => logger.error("openTerminal failed", e))
   }
 
   useAction("view.editPath", startPathEdit, { ignoreInputs: true })

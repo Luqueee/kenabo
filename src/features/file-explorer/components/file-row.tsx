@@ -58,6 +58,10 @@ export function FileRow({
       onContextMenu={onContextMenu}
       {...attributes}
       {...listeners}
+      role="row"
+      aria-selected={isSelected}
+      aria-label={`${entry.is_dir ? "Carpeta" : "Archivo"} ${entry.name}`}
+      tabIndex={isSelected ? 0 : -1}
     >
       {children}
     </tr>
