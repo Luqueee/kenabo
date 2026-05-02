@@ -9,6 +9,8 @@ import {
   type ReactNode,
   type MouseEvent as ReactMouseEvent,
 } from "react"
+import { useHotkey } from "@tanstack/react-hotkeys"
+import { useAction } from "@/features/hotkeys/bindings"
 import {
   DndContext,
   DragOverlay,
@@ -290,107 +292,111 @@ export function FileExplorerProvider({
     await ops.move(src.path, joinPath(dest.path, src.name))
   }
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    function handler(e: KeyboardEvent) {
-      const target = e.target as HTMLElement
-      const inInput = target.tagName === "INPUT" || target.tagName === "TEXTAREA"
-      const inFilter = inInput && target === filterRef.current
+  const selEntry = selected
+    ? entries.find((en) => en.path === selected) ?? null
+    : null
+  const navEnabled = !contextMenu && !deleteTarget && !inlineMode
 
-      if (e.key === "Escape") {
-        if (contextMenu) return setContextMenu(null)
-        if (deleteTarget) return setDeleteTarget(null)
-        if (inlineMode) return cancelInline()
-        if (inFilter) {
-          setFilterQuery("")
-          filterRef.current?.blur()
-          return
-        }
-      }
-      if (e.key === "/" && !inInput) {
-        e.preventDefault()
-        filterRef.current?.focus()
-        return
-      }
-      if (inInput) return
-      if (contextMenu) return
+  function scrollToSelected(p: string) {
+    tableRef.current
+      ?.querySelector<HTMLElement>(`[data-path="${CSS.escape(p)}"]`)
+      ?.scrollIntoView({ block: "nearest" })
+  }
 
-      const isCmd = e.metaKey || e.ctrlKey
-      const selEntry = selected ? entries.find((en) => en.path === selected) : null
-
-      if (isCmd && e.key === "c" && selEntry) {
-        e.preventDefault()
-        copy(selEntry.path)
-        return
-      }
-      if (isCmd && e.key === "x" && selEntry) {
-        e.preventDefault()
-        cut(selEntry.path)
-        return
-      }
-      if (isCmd && e.key === "v" && clipboard) {
-        e.preventDefault()
-        handlePaste()
-        return
-      }
-      if (e.key === "F2" && selEntry) {
-        e.preventDefault()
-        startRename(selEntry)
-        return
-      }
-      if (e.key === "Delete" && selEntry) {
-        e.preventDefault()
-        setDeleteTarget(selEntry)
-        return
-      }
-
-      if (filteredEntries.length === 0) return
-      const idx = selected
-        ? filteredEntries.findIndex((en) => en.path === selected)
-        : -1
-
-      if (e.key === "ArrowDown") {
-        e.preventDefault()
-        const next = filteredEntries[Math.min(idx + 1, filteredEntries.length - 1)]
-        if (next) {
-          setSelected(next.path)
-          tableRef.current
-            ?.querySelector<HTMLElement>(`[data-path="${CSS.escape(next.path)}"]`)
-            ?.scrollIntoView({ block: "nearest" })
-        }
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault()
-        const prev = filteredEntries[Math.max(idx - 1, 0)]
-        if (prev) {
-          setSelected(prev.path)
-          tableRef.current
-            ?.querySelector<HTMLElement>(`[data-path="${CSS.escape(prev.path)}"]`)
-            ?.scrollIntoView({ block: "nearest" })
-        }
-      } else if (e.key === "Enter") {
-        e.preventDefault()
-        if (selEntry) handleActivate(selEntry)
-      } else if (e.key === "Backspace" || e.key === "ArrowLeft") {
-        const par = parentPath(path)
-        if (par) onNavigate(par)
-      } else if (e.key === "ArrowRight") {
-        if (selEntry?.is_dir) onNavigate(selEntry.path)
-      }
+  useHotkey("Escape", () => {
+    if (contextMenu) return setContextMenu(null)
+    if (deleteTarget) return setDeleteTarget(null)
+    if (inlineMode) return cancelInline()
+    if (document.activeElement === filterRef.current) {
+      setFilterQuery("")
+      filterRef.current?.blur()
     }
-    window.addEventListener("keydown", handler)
-    return () => window.removeEventListener("keydown", handler)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    filteredEntries,
-    entries,
-    selected,
-    path,
-    onNavigate,
-    contextMenu,
-    inlineMode,
-    clipboard,
-    deleteTarget,
-  ])
+  }, { ignoreInputs: false, preventDefault: false })
+
+  useAction("filter.focus", () => {
+    filterRef.current?.focus()
+  })
+
+  useAction("file.copy", () => {
+    if (selEntry) copy(selEntry.path)
+  }, { enabled: navEnabled && !!selEntry, ignoreInputs: true })
+
+  useAction("file.cut", () => {
+    if (selEntry) cut(selEntry.path)
+  }, { enabled: navEnabled && !!selEntry, ignoreInputs: true })
+
+  useAction("file.paste", () => {
+    if (clipboard) handlePaste()
+  }, { enabled: navEnabled && !!clipboard, ignoreInputs: true })
+
+  useAction("file.rename", () => {
+    if (selEntry) startRename(selEntry)
+  }, { enabled: navEnabled && !!selEntry })
+
+  useAction("file.delete", () => {
+    if (selEntry) setDeleteTarget(selEntry)
+  }, { enabled: navEnabled && !!selEntry })
+
+  useAction("file.newFile", () => {
+    startNewFile()
+  }, { enabled: navEnabled, ignoreInputs: true })
+
+  useAction("file.newFolder", () => {
+    startNewFolder()
+  }, { enabled: navEnabled, ignoreInputs: true })
+
+  useAction("view.reload", () => {
+    reload()
+  }, { ignoreInputs: true })
+
+  useAction("view.list", () => {
+    setViewMode("list")
+  }, { ignoreInputs: true })
+
+  useAction("view.grid", () => {
+    setViewMode("grid")
+  }, { ignoreInputs: true })
+
+  useAction("view.settings", () => {
+    onOpenSettings()
+  }, { ignoreInputs: true })
+
+  useAction("selection.down", () => {
+    if (filteredEntries.length === 0) return
+    const idx = selected
+      ? filteredEntries.findIndex((en) => en.path === selected)
+      : -1
+    const next = filteredEntries[Math.min(idx + 1, filteredEntries.length - 1)]
+    if (next) {
+      setSelected(next.path)
+      scrollToSelected(next.path)
+    }
+  }, { enabled: navEnabled })
+
+  useAction("selection.up", () => {
+    if (filteredEntries.length === 0) return
+    const idx = selected
+      ? filteredEntries.findIndex((en) => en.path === selected)
+      : 0
+    const prev = filteredEntries[Math.max(idx - 1, 0)]
+    if (prev) {
+      setSelected(prev.path)
+      scrollToSelected(prev.path)
+    }
+  }, { enabled: navEnabled })
+
+  useAction("nav.activate", () => {
+    if (selEntry) handleActivate(selEntry)
+  }, { enabled: navEnabled && !!selEntry })
+
+  useAction("nav.up", () => {
+    const par = parentPath(path)
+    if (par) onNavigate(par)
+  }, { enabled: navEnabled })
+
+  useAction("nav.enter", () => {
+    if (selEntry?.is_dir) onNavigate(selEntry.path)
+  }, { enabled: navEnabled && !!selEntry?.is_dir })
 
   const segments = pathSegments(path)
   const parent = parentPath(path)

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { useDroppable } from "@dnd-kit/core"
+import { useAction } from "@/features/hotkeys/bindings"
 import {
   ArrowUp,
   LayoutGrid,
@@ -143,6 +144,9 @@ export function Toolbar() {
   function openTerminal() {
     fsGateway.openTerminal(path, terminalId).catch(console.error)
   }
+
+  useAction("view.editPath", startPathEdit, { ignoreInputs: true })
+  useAction("view.terminal", openTerminal, { ignoreInputs: true })
 
   return (
     <header

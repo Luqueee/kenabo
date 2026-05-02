@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type CSSProperties } from "react"
+import { useAction } from "@/features/hotkeys/bindings"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppProviders } from "./providers"
 import { AppSidebar } from "@/features/sidebar/components/app-sidebar"
 import { Toolbar } from "@/features/file-explorer/components/toolbar"
 import { FilterBar } from "@/features/file-explorer/components/filter-bar"
@@ -35,29 +35,23 @@ export default function App() {
     fsGateway.open(p).catch(console.error)
   }, [])
 
+  useAction("search.toggle", () => setSearchOpen((v) => !v), { ignoreInputs: false })
+  useAction("nav.back", back, { ignoreInputs: true })
+  useAction("nav.forward", forward, { ignoreInputs: true })
+
   useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault()
-        setSearchOpen((v) => !v)
-      }
-    }
     function onMouseDown(e: MouseEvent) {
       if (e.button !== 3 && e.button !== 4) return
       e.preventDefault()
       if (e.button === 3) back()
       else forward()
     }
-    window.addEventListener("keydown", onKeyDown)
     window.addEventListener("mousedown", onMouseDown)
-    return () => {
-      window.removeEventListener("keydown", onKeyDown)
-      window.removeEventListener("mousedown", onMouseDown)
-    }
+    return () => window.removeEventListener("mousedown", onMouseDown)
   }, [back, forward])
 
   return (
-    <AppProviders>
+    <>
       {currentPath ? (
         <FileExplorerProvider
           path={currentPath}
@@ -117,6 +111,6 @@ export default function App() {
         onNavigate={navigate}
         onOpenFile={handleOpenFile}
       />
-    </AppProviders>
+    </>
   )
 }
