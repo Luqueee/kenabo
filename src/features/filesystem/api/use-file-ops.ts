@@ -2,6 +2,7 @@ import { useCallback, useState } from "react"
 import { fsGateway } from "../infra/fs.gateway"
 import { joinPath } from "../domain/path"
 import type { Clipboard } from "../domain/clipboard"
+import type { FileEntry } from "../domain/file-entry"
 import { fsErrorMessage } from "../domain/fs-error"
 import { logger } from "@/shared/lib/logger"
 import type { useUndoStack } from "./use-undo-stack"
@@ -10,7 +11,8 @@ type UndoStack = ReturnType<typeof useUndoStack>
 
 export function useFileOps(
   onMutate: () => Promise<void> | void,
-  undoStack: UndoStack
+  undoStack: UndoStack,
+  onEntries?: (entries: FileEntry[], total: number) => void
 ) {
   const [opError, setOpError] = useState<string | null>(null)
 
@@ -18,7 +20,6 @@ export function useFileOps(
     async (action: () => Promise<void>) => {
       try {
         await action()
-        // Fire-and-forget — index invalidation doesn't block UI reload.
         fsGateway.clearIndex().catch(() => {})
         await onMutate()
       } catch (e) {
@@ -32,13 +33,27 @@ export function useFileOps(
     opError,
     clearError: () => setOpError(null),
 
-    rename: (src: string, newName: string) =>
-      wrap(async () => {
-        const parentDir = src.slice(0, src.lastIndexOf("/"))
-        const newPath = `${parentDir}/${newName}`
+    rename: (src: string, newName: string) => {
+      const parentDir = src.slice(0, src.lastIndexOf("/"))
+      const newPath = `${parentDir}/${newName}`
+      if (onEntries) {
+        // Batch: rename + list in one roundtrip, skip separate reload.
+        return (async () => {
+          try {
+            const page = await fsGateway.renameAndList(src, newName)
+            fsGateway.clearIndex().catch(() => {})
+            undoStack.push({ type: "rename", oldPath: src, newPath })
+            onEntries(page.entries, page.total)
+          } catch (e) {
+            setOpError(fsErrorMessage(e))
+          }
+        })()
+      }
+      return wrap(async () => {
         await fsGateway.rename(src, newName)
         undoStack.push({ type: "rename", oldPath: src, newPath })
-      }),
+      })
+    },
 
     remove: (path: string) => wrap(() => fsGateway.delete(path)),
 

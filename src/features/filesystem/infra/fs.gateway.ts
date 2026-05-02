@@ -22,6 +22,16 @@ export const fsGateway = {
   mkfile: (path: string) => invoke<void>("create_file", { path }),
   rename: (src: string, newName: string) =>
     invoke<void>("rename_entry", { src, newName }),
+  renameAndList: (
+    src: string,
+    newName: string,
+    options?: { limit?: number; offset?: number }
+  ) =>
+    invoke<DirectoryPage>("rename_and_list", {
+      src,
+      newName,
+      options: options ?? null,
+    }),
   delete: (path: string) => invoke<void>("delete_entry", { path }),
   copy: (src: string, dest: string) => invoke<void>("copy_entry", { src, dest }),
   move: (src: string, dest: string) => invoke<void>("move_entry", { src, dest }),

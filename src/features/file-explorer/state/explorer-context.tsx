@@ -141,10 +141,10 @@ export function FileExplorerProvider({
   onOpenSettings,
   children,
 }: ProviderProps) {
-  const { entries, loading, error, reload, total, hasMore, loadMore } = useDirectory(path)
+  const { entries, loading, error, reload, total, hasMore, loadMore, setEntriesFromPage } = useDirectory(path)
   const { clipboard, copy, cut, clear: clearClipboard, hasPath: clipboardHas } = useClipboard()
   const undoStack = useUndoStack()
-  const ops = useFileOps(reload, undoStack)
+  const ops = useFileOps(reload, undoStack, setEntriesFromPage)
 
   const selection = useSelection()
   const selected = selection.anchorPath

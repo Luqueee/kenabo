@@ -118,6 +118,7 @@ pub fn run() {
             fs::create_dir,
             fs::create_file,
             fs::rename_entry,
+            fs::rename_and_list,
             fs::delete_entry,
             fs::copy_entry,
             fs::move_entry,

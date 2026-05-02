@@ -145,6 +145,25 @@ pub fn rename_entry(src: String, new_name: String) -> Result<(), String> {
     std::fs::rename(src_path, &dest).map_err(|e| e.to_string())
 }
 
+/// Rename + list parent in one roundtrip — saves a separate list_directory call.
+#[tauri::command]
+pub fn rename_and_list(
+    src: String,
+    new_name: String,
+    options: Option<ListOptions>,
+) -> Result<DirectoryPage, String> {
+    validate_filename(&new_name)?;
+    let src_path = Path::new(&src);
+    reject_traversal(src_path)?;
+    let parent = src_path.parent().ok_or("Sin directorio padre")?;
+    let dest = parent.join(&new_name);
+    ensure_within(parent, &dest)?;
+    std::fs::rename(src_path, &dest).map_err(|e| e.to_string())?;
+    // Re-use list_directory logic on the same parent.
+    let parent_str = parent.to_string_lossy().to_string();
+    list_directory(parent_str, options)
+}
+
 #[tauri::command]
 pub fn delete_entry(path: String) -> Result<(), String> {
     let p = Path::new(&path);

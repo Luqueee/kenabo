@@ -44,7 +44,18 @@ export function useDirectory(path: string) {
 
   const hasMore = offset < total
 
-  return { entries, loading, error, reload, total, hasMore, loadMore }
+  /** Inject entries directly from a batch op result — skips a reload() IPC call. */
+  const setEntriesFromPage = useCallback(
+    (fresh: FileEntry[], freshTotal: number) => {
+      setEntries(fresh)
+      setTotal(freshTotal)
+      setOffset(fresh.length)
+      setError(null)
+    },
+    []
+  )
+
+  return { entries, loading, error, reload, total, hasMore, loadMore, setEntriesFromPage }
 }
 
 export function useHomeDir() {
