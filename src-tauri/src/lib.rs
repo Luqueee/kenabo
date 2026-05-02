@@ -354,7 +354,7 @@ pub fn run() {
         .plugin(external_navigation_plugin())
         .setup(|app| {
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("file-explorer")
+                .title("Arbor")
                 .inner_size(1400.0, 700.0)
                 .center()
                 .visible(false)
@@ -374,9 +374,9 @@ pub fn run() {
                 unsafe {
                     let bg_color = NSColor::colorWithRed_green_blue_alpha_(
                         nil,
-                        29.0 / 255.0,
-                        29.0 / 255.0,
-                        29.0 / 255.0,
+                        10.0 / 255.0,
+                        16.0 / 255.0,
+                        14.0 / 255.0,
                         1.0,
                     );
                     ns_window.setBackgroundColor_(bg_color);

@@ -9,9 +9,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import type { FileEntry } from "@/features/filesystem/domain/file-entry"
-import type { Clipboard as ClipboardState } from "@/features/filesystem/domain/clipboard"
-import type { ContextMenuState } from "../types"
+import { useFileExplorer } from "../state/explorer-context"
 
 interface MenuItemProps {
   icon?: React.ReactNode
@@ -55,43 +53,32 @@ function MenuDivider() {
   return <div className="my-1 border-t border-border/60" />
 }
 
-interface Props {
-  contextMenu: ContextMenuState
-  clipboard: ClipboardState | null
-  onClose: () => void
-  onActivate: (entry: FileEntry) => void
-  onCopy: (entry: FileEntry) => void
-  onCut: (entry: FileEntry) => void
-  onPaste: () => void
-  onRename: (entry: FileEntry) => void
-  onDelete: (entry: FileEntry) => void
-  onNewFolder: () => void
-  onNewFile: () => void
-}
+export function FileContextMenu() {
+  const {
+    contextMenu,
+    closeContextMenu,
+    clipboard,
+    handleActivate,
+    copy,
+    cut,
+    handlePaste,
+    startRename,
+    setDeleteTarget,
+    startNewFolder,
+    startNewFile,
+  } = useFileExplorer()
 
-export function FileContextMenu({
-  contextMenu,
-  clipboard,
-  onClose,
-  onActivate,
-  onCopy,
-  onCut,
-  onPaste,
-  onRename,
-  onDelete,
-  onNewFolder,
-  onNewFile,
-}: Props) {
-  const entry: FileEntry | null = contextMenu.entry
+  if (!contextMenu) return null
+  const entry = contextMenu.entry
 
   return createPortal(
     <>
       <div
         className="fixed inset-0 z-50"
-        onClick={onClose}
+        onClick={closeContextMenu}
         onContextMenu={(e) => {
           e.preventDefault()
-          onClose()
+          closeContextMenu()
         }}
       />
       <div
@@ -105,8 +92,8 @@ export function FileContextMenu({
               label="Abrir"
               shortcut="↵"
               onClick={() => {
-                onActivate(entry)
-                onClose()
+                handleActivate(entry)
+                closeContextMenu()
               }}
             />
             <MenuDivider />
@@ -115,8 +102,8 @@ export function FileContextMenu({
               label="Copiar"
               shortcut="⌘C"
               onClick={() => {
-                onCopy(entry)
-                onClose()
+                copy(entry.path)
+                closeContextMenu()
               }}
             />
             <MenuItem
@@ -124,8 +111,8 @@ export function FileContextMenu({
               label="Cortar"
               shortcut="⌘X"
               onClick={() => {
-                onCut(entry)
-                onClose()
+                cut(entry.path)
+                closeContextMenu()
               }}
             />
             <MenuDivider />
@@ -134,8 +121,8 @@ export function FileContextMenu({
               label="Renombrar"
               shortcut="F2"
               onClick={() => {
-                onRename(entry)
-                onClose()
+                startRename(entry)
+                closeContextMenu()
               }}
             />
             <MenuDivider />
@@ -145,8 +132,8 @@ export function FileContextMenu({
               shortcut="⌦"
               danger
               onClick={() => {
-                onDelete(entry)
-                onClose()
+                setDeleteTarget(entry)
+                closeContextMenu()
               }}
             />
           </>
@@ -156,16 +143,16 @@ export function FileContextMenu({
               icon={<FolderPlus className="h-3.5 w-3.5" />}
               label="Nueva carpeta"
               onClick={() => {
-                onNewFolder()
-                onClose()
+                startNewFolder()
+                closeContextMenu()
               }}
             />
             <MenuItem
               icon={<FilePlus className="h-3.5 w-3.5" />}
               label="Nuevo archivo"
               onClick={() => {
-                onNewFile()
-                onClose()
+                startNewFile()
+                closeContextMenu()
               }}
             />
             <MenuDivider />
@@ -175,8 +162,8 @@ export function FileContextMenu({
               shortcut="⌘V"
               disabled={!clipboard}
               onClick={() => {
-                onPaste()
-                onClose()
+                handlePaste()
+                closeContextMenu()
               }}
             />
           </>

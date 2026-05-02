@@ -45,8 +45,7 @@ export function AppSidebar({
   }, [homeDir])
 
   return (
-    <Sidebar collapsible="offcanvas" {...props}>
-      <div data-tauri-drag-region className="h-7 w-full shrink-0" />
+    <Sidebar collapsible="offcanvas" className="p-0" {...props}>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
@@ -78,7 +77,7 @@ export function AppSidebar({
                         e.stopPropagation()
                         onRemoveFavorite(favPath)
                       }}
-                      className="ml-auto hidden rounded p-0.5 hover:bg-sidebar-accent-foreground/10 group-hover/fav:flex"
+                      className="ml-auto hidden rounded p-0.5 group-hover/fav:flex hover:bg-sidebar-accent-foreground/10"
                       title="Quitar de favoritos"
                     >
                       <X className="h-3 w-3" />

@@ -1,13 +1,25 @@
-import { useCallback, useEffect, useState } from "react"
-import { SidebarInset } from "@/components/ui/sidebar"
+import { useCallback, useEffect, useState, type CSSProperties } from "react"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppProviders } from "./providers"
 import { AppSidebar } from "@/features/sidebar/components/app-sidebar"
-import { FileExplorer } from "@/features/file-explorer/components/file-explorer"
+import { Toolbar } from "@/features/file-explorer/components/toolbar"
+import { FilterBar } from "@/features/file-explorer/components/filter-bar"
+import { FileTable } from "@/features/file-explorer/components/file-table"
+import { DeleteBar } from "@/features/file-explorer/components/delete-bar"
+import { ErrorBar } from "@/features/file-explorer/components/error-bar"
+import { StatusFooter } from "@/features/file-explorer/components/status-footer"
+import { FileContextMenu } from "@/features/file-explorer/components/context-menu"
+import { FileExplorerProvider } from "@/features/file-explorer/state/explorer-context"
 import { SearchPalette } from "@/features/search/components/search-palette"
 import { useHomeDir } from "@/features/filesystem/api/use-directory"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import { useHistory } from "@/features/navigation/api/use-history"
 import { useFavorites } from "@/features/navigation/api/use-favorites"
+
+const sidebarStyle = {
+  "--sidebar-width": "calc(var(--spacing) * 56)",
+  "--header-height": "calc(var(--spacing) * 12)",
+} as CSSProperties
 
 export default function App() {
   const homeDir = useHomeDir()
@@ -42,29 +54,45 @@ export default function App() {
 
   return (
     <AppProviders>
-      <AppSidebar
-        variant="inset"
-        homeDir={homeDir}
-        currentPath={currentPath ?? ""}
-        favorites={favorites}
-        onNavigate={navigate}
-        onRemoveFavorite={remove}
-      />
-      <SidebarInset>
-        {currentPath ? (
-          <FileExplorer
-            path={currentPath}
-            onNavigate={navigate}
-            onOpenSearch={() => setSearchOpen(true)}
-            onAddFavorite={add}
-            isFavorite={isFavorite(currentPath)}
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            Cargando...
-          </div>
-        )}
-      </SidebarInset>
+      {currentPath ? (
+        <FileExplorerProvider
+          path={currentPath}
+          onNavigate={navigate}
+          onOpenSearch={() => setSearchOpen(true)}
+          onAddFavorite={add}
+          isFavorite={isFavorite(currentPath)}
+        >
+          <SidebarProvider
+            className="flex h-svh w-full flex-col overflow-hidden bg-background"
+            style={sidebarStyle}
+          >
+            <Toolbar />
+            <FilterBar />
+            <div className="flex min-h-0 w-full flex-1 flex-row">
+              <AppSidebar
+                variant="inset"
+                style={{ top: "6rem", bottom: "1.75rem", height: "auto" }}
+                homeDir={homeDir}
+                currentPath={currentPath}
+                favorites={favorites}
+                onNavigate={navigate}
+                onRemoveFavorite={remove}
+              />
+              <SidebarInset className="min-w-0 flex-1 overflow-hidden">
+                <FileTable />
+              </SidebarInset>
+            </div>
+            <DeleteBar />
+            <ErrorBar />
+            <StatusFooter />
+          </SidebarProvider>
+          <FileContextMenu />
+        </FileExplorerProvider>
+      ) : (
+        <div className="flex h-svh items-center justify-center text-sm text-muted-foreground">
+          Cargando...
+        </div>
+      )}
 
       <SearchPalette
         root={currentPath ?? homeDir ?? "/"}

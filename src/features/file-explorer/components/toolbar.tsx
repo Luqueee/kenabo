@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import type { PathSegment } from "@/features/filesystem/domain/path"
+import { useFileExplorer } from "../state/explorer-context"
 
 function DroppableUpButton({
   parent,
@@ -80,33 +81,25 @@ function DroppableBreadcrumbLink({
   )
 }
 
-interface Props {
-  segments: PathSegment[]
-  parent: string | null
-  loading: boolean
-  isFavorite: boolean
-  isDragging: boolean
-  onNavigate: (path: string) => void
-  onRefresh: () => void
-  onAddFavorite: () => void
-  onOpenSearch: () => void
-}
+export function Toolbar() {
+  const {
+    segments,
+    parent,
+    loading,
+    isFavorite,
+    draggingEntry,
+    onNavigate,
+    reload,
+    onAddFavorite,
+    onOpenSearch,
+    path,
+  } = useFileExplorer()
+  const isDragging = draggingEntry !== null
 
-export function Toolbar({
-  segments,
-  parent,
-  loading,
-  isFavorite,
-  isDragging,
-  onNavigate,
-  onRefresh,
-  onAddFavorite,
-  onOpenSearch,
-}: Props) {
   return (
     <header
       data-tauri-drag-region
-      className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur"
+      className="flex h-12 w-full shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur"
     >
       <SidebarTrigger className="h-8 w-8" />
       <Separator orientation="vertical" className="mx-1 h-full" />
@@ -121,7 +114,7 @@ export function Toolbar({
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={onRefresh}
+        onClick={reload}
         title="Actualizar"
         disabled={loading}
       >
@@ -131,7 +124,7 @@ export function Toolbar({
         variant="ghost"
         size="icon"
         className="h-8 w-8"
-        onClick={onAddFavorite}
+        onClick={() => onAddFavorite(path)}
         disabled={isFavorite}
         title={isFavorite ? "Ya está en favoritos" : "Agregar a favoritos"}
       >
