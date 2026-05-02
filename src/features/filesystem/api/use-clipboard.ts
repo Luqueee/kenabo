@@ -5,14 +5,19 @@ export function useClipboard() {
   const [clipboard, setClipboard] = useState<Clipboard | null>(null)
 
   const copy = useCallback(
-    (path: string) => setClipboard({ path, op: "copy" }),
+    (paths: string[]) => paths.length > 0 && setClipboard({ paths, op: "copy" }),
     []
   )
   const cut = useCallback(
-    (path: string) => setClipboard({ path, op: "cut" }),
+    (paths: string[]) => paths.length > 0 && setClipboard({ paths, op: "cut" }),
     []
   )
   const clear = useCallback(() => setClipboard(null), [])
 
-  return { clipboard, copy, cut, clear }
+  const hasPath = useCallback(
+    (path: string) => clipboard?.paths.includes(path) ?? false,
+    [clipboard]
+  )
+
+  return { clipboard, copy, cut, clear, hasPath }
 }

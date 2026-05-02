@@ -19,6 +19,7 @@ export function StatusFooter() {
     totalCount,
     filterQuery,
     clipboard,
+    selectedPaths,
   } = useFileExplorer()
   const memory = useMemoryUsage()
 
@@ -36,6 +37,11 @@ export function StatusFooter() {
             {dirCount} {dirCount === 1 ? "carpeta" : "carpetas"} · {fileCount}{" "}
             {fileCount === 1 ? "archivo" : "archivos"}
             {filterQuery && ` (filtrado de ${totalCount})`}
+            {selectedPaths.size > 1 && (
+              <span className="ml-3 text-primary">
+                {selectedPaths.size} seleccionados
+              </span>
+            )}
           </>
         )}
         {memory && (

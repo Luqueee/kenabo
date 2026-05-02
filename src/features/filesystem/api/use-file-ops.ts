@@ -2,6 +2,7 @@ import { useCallback, useState } from "react"
 import { fsGateway } from "../infra/fs.gateway"
 import { joinPath } from "../domain/path"
 import type { Clipboard } from "../domain/clipboard"
+import { fsErrorMessage } from "../domain/fs-error"
 
 export function useFileOps(onMutate: () => Promise<void> | void) {
   const [opError, setOpError] = useState<string | null>(null)
@@ -13,7 +14,7 @@ export function useFileOps(onMutate: () => Promise<void> | void) {
         await fsGateway.clearIndex().catch(() => {})
         await onMutate()
       } catch (e) {
-        setOpError(String(e))
+        setOpError(fsErrorMessage(e))
       }
     },
     [onMutate]
@@ -31,12 +32,18 @@ export function useFileOps(onMutate: () => Promise<void> | void) {
       wrap(() => fsGateway.mkfile(joinPath(parent, name))),
     paste: (clipboard: Clipboard, destDir: string) =>
       wrap(async () => {
-        const srcName = clipboard.path.split("/").at(-1) ?? "archivo"
-        const dest = joinPath(destDir, srcName)
-        if (clipboard.op === "cut") await fsGateway.move(clipboard.path, dest)
-        else await fsGateway.copy(clipboard.path, dest)
+        for (const src of clipboard.paths) {
+          const srcName = src.split("/").at(-1) ?? "archivo"
+          const dest = joinPath(destDir, srcName)
+          if (clipboard.op === "cut") await fsGateway.move(src, dest)
+          else await fsGateway.copy(src, dest)
+        }
       }),
     move: (src: string, dest: string) => wrap(() => fsGateway.move(src, dest)),
+    removeMany: (paths: string[]) =>
+      wrap(async () => {
+        for (const p of paths) await fsGateway.delete(p)
+      }),
     open: (path: string) => fsGateway.open(path).catch(console.error),
   }
 }

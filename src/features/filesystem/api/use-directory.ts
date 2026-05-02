@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { fsGateway } from "../infra/fs.gateway"
 import type { FileEntry } from "../domain/file-entry"
+import { fsErrorMessage } from "../domain/fs-error"
 
 export function useDirectory(path: string) {
   const [entries, setEntries] = useState<FileEntry[]>([])
@@ -14,7 +15,7 @@ export function useDirectory(path: string) {
       const result = await fsGateway.list(p)
       setEntries(result)
     } catch (e) {
-      setError(String(e))
+      setError(fsErrorMessage(e))
       setEntries([])
     } finally {
       setLoading(false)

@@ -13,7 +13,10 @@ use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_opener::OpenerExt;
 
+mod path_safety;
 mod smb;
+
+use path_safety::{ensure_within, reject_traversal, validate_filename};
 
 #[derive(Serialize, Clone)]
 pub struct FileEntry {
@@ -269,28 +272,42 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
 
 #[tauri::command]
 fn create_dir(path: String) -> Result<(), String> {
-    std::fs::create_dir_all(&path).map_err(|e| e.to_string())
+    let p = Path::new(&path);
+    reject_traversal(p)?;
+    std::fs::create_dir_all(p).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn create_file(path: String) -> Result<(), String> {
-    std::fs::File::create(&path).map(|_| ()).map_err(|e| e.to_string())
+    let p = Path::new(&path);
+    reject_traversal(p)?;
+    if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
+        validate_filename(name)?;
+    }
+    std::fs::File::create(p).map(|_| ()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn rename_entry(src: String, new_name: String) -> Result<(), String> {
-    if new_name.contains('/') || new_name.contains('\\') || new_name.is_empty() {
-        return Err("Nombre inválido".to_string());
-    }
+    validate_filename(&new_name)?;
     let src_path = Path::new(&src);
+    reject_traversal(src_path)?;
     let parent = src_path.parent().ok_or("Sin directorio padre")?;
-    std::fs::rename(src_path, parent.join(&new_name)).map_err(|e| e.to_string())
+    let dest = parent.join(&new_name);
+    // Verifica que dest resuelva dentro del parent canónico (bloquea symlink-escape).
+    ensure_within(parent, &dest)?;
+    std::fs::rename(src_path, &dest).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 fn delete_entry(path: String) -> Result<(), String> {
     let p = Path::new(&path);
-    if p.is_dir() {
+    reject_traversal(p)?;
+    // Bloquea borrado de symlinks que apunten fuera del padre directo.
+    let meta = std::fs::symlink_metadata(p).map_err(|e| e.to_string())?;
+    if meta.file_type().is_symlink() {
+        std::fs::remove_file(p).map_err(|e| e.to_string())
+    } else if meta.is_dir() {
         std::fs::remove_dir_all(p).map_err(|e| e.to_string())
     } else {
         std::fs::remove_file(p).map_err(|e| e.to_string())
@@ -301,6 +318,11 @@ fn delete_entry(path: String) -> Result<(), String> {
 fn copy_entry(src: String, dest: String) -> Result<(), String> {
     let src_path = Path::new(&src);
     let dest_path = Path::new(&dest);
+    reject_traversal(src_path)?;
+    reject_traversal(dest_path)?;
+    if let Some(name) = dest_path.file_name().and_then(|n| n.to_str()) {
+        validate_filename(name)?;
+    }
     if src_path.is_dir() {
         copy_dir_recursive(src_path, dest_path).map_err(|e| e.to_string())
     } else {
@@ -310,7 +332,14 @@ fn copy_entry(src: String, dest: String) -> Result<(), String> {
 
 #[tauri::command]
 fn move_entry(src: String, dest: String) -> Result<(), String> {
-    std::fs::rename(&src, &dest).map_err(|e| e.to_string())
+    let src_path = Path::new(&src);
+    let dest_path = Path::new(&dest);
+    reject_traversal(src_path)?;
+    reject_traversal(dest_path)?;
+    if let Some(name) = dest_path.file_name().and_then(|n| n.to_str()) {
+        validate_filename(name)?;
+    }
+    std::fs::rename(src_path, dest_path).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize, Clone)]

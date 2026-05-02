@@ -7,8 +7,8 @@ import { InlineEditInput } from "./inline-edit-input"
 export function FileGrid() {
   const {
     filteredEntries,
-    selected,
-    setSelected,
+    isSelected,
+    selectAt,
     clipboard,
     inlineMode,
     inlineTarget,
@@ -54,7 +54,7 @@ export function FileGrid() {
       )}
 
       {filteredEntries.map((entry) => {
-        const isSelected = selected === entry.path
+        const selectedTile = isSelected(entry.path)
         const isRenaming =
           inlineMode === "rename" && inlineTarget === entry.path
         const isCut = clipboard?.op === "cut" && clipboard.path === entry.path
@@ -63,10 +63,10 @@ export function FileGrid() {
           <FileTile
             key={entry.path}
             entry={entry}
-            isSelected={isSelected}
+            isSelected={selectedTile}
             isCut={isCut}
             isRenaming={isRenaming}
-            onClick={() => setSelected(entry.path)}
+            onClick={(e) => selectAt(entry.path, e)}
             onDoubleClick={() => !isRenaming && handleActivate(entry)}
             onContextMenu={(e) => openContextMenu(e, entry)}
           >

@@ -11,39 +11,26 @@ import {
 } from "react"
 import { useHotkey } from "@tanstack/react-hotkeys"
 import { useAction } from "@/features/hotkeys/bindings"
-import {
-  DndContext,
-  DragOverlay,
-  MouseSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent,
-} from "@dnd-kit/core"
+import { DndContext, DragOverlay } from "@dnd-kit/core"
 import { useDirectory } from "@/features/filesystem/api/use-directory"
 import { useFileOps } from "@/features/filesystem/api/use-file-ops"
 import { useClipboard } from "@/features/filesystem/api/use-clipboard"
 import {
   pathSegments,
   parentPath,
-  joinPath,
   type PathSegment,
 } from "@/features/filesystem/domain/path"
 import type { FileEntry } from "@/features/filesystem/domain/file-entry"
+import { isMacJunk } from "@/features/filesystem/domain/mac-junk"
 import type { Clipboard } from "@/features/filesystem/domain/clipboard"
 import type { ContextMenuState } from "../types"
 import { FileIcon } from "../components/file-icon"
+import { useViewMode, type ViewMode } from "../hooks/use-view-mode"
+import { useInlineEditing, type InlineMode } from "../hooks/use-inline-editing"
+import { useDragDrop } from "../hooks/use-drag-drop"
+import { useSelection, modeFromEvent } from "../hooks/use-selection"
 
-export type InlineMode = null | "rename" | "newFolder" | "newFile"
-export type ViewMode = "list" | "grid"
-
-const VIEW_MODE_KEY = "file-explorer:view-mode"
-function readViewMode(): ViewMode {
-  if (typeof window === "undefined") return "list"
-  const v = window.localStorage.getItem(VIEW_MODE_KEY)
-  return v === "grid" ? "grid" : "list"
-}
+export type { InlineMode, ViewMode }
 
 interface Value {
   path: string
@@ -60,6 +47,11 @@ interface Value {
 
   selected: string | null
   setSelected: (p: string | null) => void
+  selectedPaths: ReadonlySet<string>
+  isSelected: (path: string) => boolean
+  selectAt: (path: string, e: { shiftKey: boolean; metaKey: boolean; ctrlKey: boolean }) => void
+  selectAll: () => void
+  clearSelection: () => void
 
   filterQuery: string
   setFilterQuery: (q: string) => void
@@ -67,8 +59,9 @@ interface Value {
   tableRef: RefObject<HTMLDivElement | null>
 
   clipboard: Clipboard | null
-  copy: (path: string) => void
-  cut: (path: string) => void
+  copy: (paths: string[]) => void
+  cut: (paths: string[]) => void
+  clipboardHas: (path: string) => boolean
 
   opError: string | null
   clearOpError: () => void
@@ -87,8 +80,8 @@ interface Value {
   openContextMenu: (e: ReactMouseEvent, entry: FileEntry | null) => void
   closeContextMenu: () => void
 
-  deleteTarget: FileEntry | null
-  setDeleteTarget: (e: FileEntry | null) => void
+  deleteTargets: FileEntry[]
+  setDeleteTargets: (e: FileEntry[]) => void
   confirmDelete: () => Promise<void>
 
   draggingEntry: FileEntry | null
@@ -139,104 +132,50 @@ export function FileExplorerProvider({
   children,
 }: ProviderProps) {
   const { entries, loading, error, reload } = useDirectory(path)
-  const { clipboard, copy, cut, clear: clearClipboard } = useClipboard()
+  const { clipboard, copy, cut, clear: clearClipboard, hasPath: clipboardHas } = useClipboard()
   const ops = useFileOps(reload)
 
-  const [selected, setSelected] = useState<string | null>(null)
+  const selection = useSelection()
+  const selected = selection.anchorPath
+  const setSelected = selection.replace
   const [filterQuery, setFilterQuery] = useState("")
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
-  const [draggingEntry, setDraggingEntry] = useState<FileEntry | null>(null)
-  const [viewMode, setViewModeState] = useState<ViewMode>(readViewMode)
+  const [deleteTargets, setDeleteTargets] = useState<FileEntry[]>([])
 
-  function setViewMode(m: ViewMode) {
-    setViewModeState(m)
-    if (typeof window !== "undefined")
-      window.localStorage.setItem(VIEW_MODE_KEY, m)
-  }
-
-  const [inlineMode, setInlineMode] = useState<InlineMode>(null)
-  const [inlineTarget, setInlineTarget] = useState<string | null>(null)
-  const [inlineValue, setInlineValue] = useState("")
+  const { viewMode, setViewMode } = useViewMode()
+  const inline = useInlineEditing(path, entries, ops)
+  const dnd = useDragDrop(ops)
 
   const tableRef = useRef<HTMLDivElement | null>(null)
   const filterRef = useRef<HTMLInputElement | null>(null)
-  const pendingSelectRef = useRef<string | null>(null)
-
-  const sensors = useSensors(
-    useSensor(MouseSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
-  )
 
   useEffect(() => {
     setSelected(null)
     setFilterQuery("")
-    setInlineMode(null)
-    setInlineTarget(null)
-    setInlineValue("")
   }, [path])
+
+  const visibleEntries = useMemo(
+    () => entries.filter((e) => !isMacJunk(e.name)),
+    [entries]
+  )
 
   const filteredEntries = useMemo(() => {
     const q = filterQuery.trim().toLowerCase()
-    if (!q) return entries
-    return entries.filter((e) => e.name.toLowerCase().includes(q))
-  }, [entries, filterQuery])
+    if (!q) return visibleEntries
+    return visibleEntries.filter((e) => e.name.toLowerCase().includes(q))
+  }, [visibleEntries, filterQuery])
 
   useEffect(() => {
-    const name = pendingSelectRef.current
-    if (!name || entries.length === 0) return
-    const entry = entries.find((e) => e.name === name)
+    if (!inline.pendingSelect || entries.length === 0) return
+    const entry = entries.find((e) => e.name === inline.pendingSelect)
     if (entry) {
-      pendingSelectRef.current = null
+      inline.clearPendingSelect()
       setSelected(entry.path)
       tableRef.current
         ?.querySelector<HTMLElement>(`[data-path="${CSS.escape(entry.path)}"]`)
         ?.scrollIntoView({ block: "nearest" })
     }
-  }, [entries])
-
-  function startRename(entry: FileEntry) {
-    setInlineMode("rename")
-    setInlineTarget(entry.path)
-    setInlineValue(entry.name)
-  }
-  function startNewFolder() {
-    setInlineMode("newFolder")
-    setInlineTarget(null)
-    setInlineValue("")
-  }
-  function startNewFile() {
-    setInlineMode("newFile")
-    setInlineTarget(null)
-    setInlineValue("")
-  }
-  function cancelInline() {
-    setInlineMode(null)
-    setInlineTarget(null)
-    setInlineValue("")
-  }
-  async function commitInline() {
-    const trimmed = inlineValue.trim()
-    if (!trimmed) {
-      cancelInline()
-      return
-    }
-    if (inlineMode === "rename" && inlineTarget) {
-      const entry = entries.find((e) => e.path === inlineTarget)
-      if (!entry || trimmed === entry.name) {
-        cancelInline()
-        return
-      }
-      await ops.rename(inlineTarget, trimmed)
-    } else if (inlineMode === "newFolder") {
-      pendingSelectRef.current = trimmed
-      await ops.mkdir(path, trimmed)
-    } else if (inlineMode === "newFile") {
-      pendingSelectRef.current = trimmed
-      await ops.mkfile(path, trimmed)
-    }
-    cancelInline()
-  }
+  }, [entries, inline.pendingSelect, inline.clearPendingSelect, inline])
 
   function handleActivate(entry: FileEntry) {
     if (entry.is_dir) onNavigate(entry.path)
@@ -262,40 +201,23 @@ export function FileExplorerProvider({
   }
 
   async function confirmDelete() {
-    if (!deleteTarget) return
-    const target = deleteTarget
-    setDeleteTarget(null)
-    await ops.remove(target.path)
-  }
-
-  function handleDragStart(event: DragStartEvent) {
-    const entry = event.active.data.current?.entry as FileEntry | undefined
-    if (entry) setDraggingEntry(entry)
-  }
-  async function handleDragEnd(event: DragEndEvent) {
-    setDraggingEntry(null)
-    const { active, over } = event
-    if (!over) return
-    const src = active.data.current?.entry as FileEntry | undefined
-    if (!src) return
-    const navPath = over.data.current?.navPath as string | undefined
-    if (navPath) {
-      if (src.path === navPath) return
-      if (navPath.startsWith(src.path + "/")) return
-      await ops.move(src.path, joinPath(navPath, src.name))
-      return
-    }
-    const dest = over.data.current?.entry as FileEntry | undefined
-    if (!dest || !dest.is_dir) return
-    if (src.path === dest.path) return
-    if (src.path.startsWith(dest.path + "/")) return
-    await ops.move(src.path, joinPath(dest.path, src.name))
+    if (deleteTargets.length === 0) return
+    const targets = deleteTargets
+    setDeleteTargets([])
+    selection.clear()
+    await ops.removeMany(targets.map((t) => t.path))
   }
 
   const selEntry = selected
     ? entries.find((en) => en.path === selected) ?? null
     : null
-  const navEnabled = !contextMenu && !deleteTarget && !inlineMode
+
+  function selectedEntries(): FileEntry[] {
+    if (selection.selectedPaths.size === 0) return selEntry ? [selEntry] : []
+    return entries.filter((en) => selection.selectedPaths.has(en.path))
+  }
+
+  const navEnabled = !contextMenu && deleteTargets.length === 0 && !inline.inlineMode
 
   function scrollToSelected(p: string) {
     tableRef.current
@@ -305,12 +227,14 @@ export function FileExplorerProvider({
 
   useHotkey("Escape", () => {
     if (contextMenu) return setContextMenu(null)
-    if (deleteTarget) return setDeleteTarget(null)
-    if (inlineMode) return cancelInline()
+    if (deleteTargets.length > 0) return setDeleteTargets([])
+    if (inline.inlineMode) return inline.cancelInline()
     if (document.activeElement === filterRef.current) {
       setFilterQuery("")
       filterRef.current?.blur()
+      return
     }
+    if (selection.selectedPaths.size > 1) selection.clear()
   }, { ignoreInputs: false, preventDefault: false })
 
   useAction("filter.focus", () => {
@@ -318,11 +242,13 @@ export function FileExplorerProvider({
   })
 
   useAction("file.copy", () => {
-    if (selEntry) copy(selEntry.path)
+    const sel = selectedEntries()
+    if (sel.length > 0) copy(sel.map((e) => e.path))
   }, { enabled: navEnabled && !!selEntry, ignoreInputs: true })
 
   useAction("file.cut", () => {
-    if (selEntry) cut(selEntry.path)
+    const sel = selectedEntries()
+    if (sel.length > 0) cut(sel.map((e) => e.path))
   }, { enabled: navEnabled && !!selEntry, ignoreInputs: true })
 
   useAction("file.paste", () => {
@@ -330,19 +256,20 @@ export function FileExplorerProvider({
   }, { enabled: navEnabled && !!clipboard, ignoreInputs: true })
 
   useAction("file.rename", () => {
-    if (selEntry) startRename(selEntry)
+    if (selEntry) inline.startRename(selEntry)
   }, { enabled: navEnabled && !!selEntry })
 
   useAction("file.delete", () => {
-    if (selEntry) setDeleteTarget(selEntry)
+    const sel = selectedEntries()
+    if (sel.length > 0) setDeleteTargets(sel)
   }, { enabled: navEnabled && !!selEntry })
 
   useAction("file.newFile", () => {
-    startNewFile()
+    inline.startNewFile()
   }, { enabled: navEnabled, ignoreInputs: true })
 
   useAction("file.newFolder", () => {
-    startNewFolder()
+    inline.startNewFolder()
   }, { enabled: navEnabled, ignoreInputs: true })
 
   useAction("view.reload", () => {
@@ -360,6 +287,10 @@ export function FileExplorerProvider({
   useAction("view.settings", () => {
     onOpenSettings()
   }, { ignoreInputs: true })
+
+  useAction("selection.all", () => {
+    selection.selectAll(filteredEntries.map((en) => en.path))
+  }, { enabled: navEnabled, ignoreInputs: true })
 
   useAction("selection.down", () => {
     if (filteredEntries.length === 0) return
@@ -416,6 +347,12 @@ export function FileExplorerProvider({
     reload,
     selected,
     setSelected,
+    selectedPaths: selection.selectedPaths,
+    isSelected: selection.isSelected,
+    selectAt: (path, e) =>
+      selection.select(path, modeFromEvent(e), filteredEntries),
+    selectAll: () => selection.selectAll(filteredEntries.map((en) => en.path)),
+    clearSelection: selection.clear,
     filterQuery,
     setFilterQuery,
     filterRef,
@@ -425,22 +362,23 @@ export function FileExplorerProvider({
     cut,
     opError: ops.opError,
     clearOpError: ops.clearError,
-    inlineMode,
-    inlineTarget,
-    inlineValue,
-    setInlineValue,
-    startRename,
-    startNewFolder,
-    startNewFile,
-    cancelInline,
-    commitInline,
+    inlineMode: inline.inlineMode,
+    inlineTarget: inline.inlineTarget,
+    inlineValue: inline.inlineValue,
+    setInlineValue: inline.setInlineValue,
+    startRename: inline.startRename,
+    startNewFolder: inline.startNewFolder,
+    startNewFile: inline.startNewFile,
+    cancelInline: inline.cancelInline,
+    commitInline: inline.commitInline,
     contextMenu,
     openContextMenu,
     closeContextMenu,
-    deleteTarget,
-    setDeleteTarget,
+    deleteTargets,
+    setDeleteTargets,
     confirmDelete,
-    draggingEntry,
+    clipboardHas,
+    draggingEntry: dnd.draggingEntry,
     viewMode,
     setViewMode,
     terminalId,
@@ -457,21 +395,21 @@ export function FileExplorerProvider({
   return (
     <Ctx.Provider value={value}>
       <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => setDraggingEntry(null)}
+        sensors={dnd.sensors}
+        onDragStart={dnd.handleDragStart}
+        onDragEnd={dnd.handleDragEnd}
+        onDragCancel={dnd.handleDragCancel}
       >
         {children}
         <DragOverlay>
-          {draggingEntry && (
+          {dnd.draggingEntry && (
             <div className="flex w-fit items-center gap-2 rounded-md border border-border bg-popover px-3 py-1.5 text-sm shadow-lg">
               <FileIcon
-                name={draggingEntry.name}
-                isDir={draggingEntry.is_dir}
-                extension={draggingEntry.extension}
+                name={dnd.draggingEntry.name}
+                isDir={dnd.draggingEntry.is_dir}
+                extension={dnd.draggingEntry.extension}
               />
-              <span className="max-w-48 truncate">{draggingEntry.name}</span>
+              <span className="max-w-48 truncate">{dnd.draggingEntry.name}</span>
             </div>
           )}
         </DragOverlay>

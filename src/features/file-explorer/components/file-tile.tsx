@@ -6,7 +6,7 @@ interface Props {
   isSelected: boolean
   isCut: boolean
   isRenaming: boolean
-  onClick: () => void
+  onClick: (e: React.MouseEvent) => void
   onDoubleClick: () => void
   onContextMenu: (e: React.MouseEvent) => void
   children: React.ReactNode

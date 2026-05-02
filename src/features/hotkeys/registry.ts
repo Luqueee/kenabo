@@ -19,6 +19,7 @@ export const HOTKEY_ACTIONS = [
   // Selección
   { id: "selection.down", label: "Selección abajo", group: "Selección", defaultHotkey: "ArrowDown" },
   { id: "selection.up", label: "Selección arriba", group: "Selección", defaultHotkey: "ArrowUp" },
+  { id: "selection.all", label: "Seleccionar todo", group: "Selección", defaultHotkey: "Mod+A" },
 
   // Archivos
   { id: "file.copy", label: "Copiar", group: "Archivos", defaultHotkey: "Mod+C" },
