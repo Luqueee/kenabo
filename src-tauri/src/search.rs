@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+use std::time::SystemTime;
 
 use ignore::{WalkBuilder, WalkState};
 use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
@@ -12,6 +13,9 @@ pub struct SearchResult {
     pub name: String,
     pub path: String,
     pub is_dir: bool,
+    pub size: u64,
+    pub modified: u64,
+    pub extension: Option<String>,
     pub score: u32,
 }
 
@@ -39,6 +43,9 @@ struct IndexEntry {
     name: String,
     path: String,
     is_dir: bool,
+    size: u64,
+    modified: u64,
+    extension: Option<String>,
 }
 
 #[derive(Default)]
@@ -89,11 +96,31 @@ fn build_index(root: &str) -> Vec<IndexEntry> {
                     None => return WalkState::Continue,
                 };
                 let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                let metadata = entry.metadata().ok();
+                let size = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
+                let modified = metadata
+                    .as_ref()
+                    .and_then(|m| m.modified().ok())
+                    .and_then(|t| t.duration_since(SystemTime::UNIX_EPOCH).ok())
+                    .map(|d| d.as_secs())
+                    .unwrap_or(0);
+                let extension = if !is_dir {
+                    entry
+                        .path()
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .map(|e| e.to_lowercase())
+                } else {
+                    None
+                };
                 if let Ok(mut e) = entries.lock() {
                     e.push(IndexEntry {
                         name,
                         path: entry.path().to_string_lossy().into_owned(),
                         is_dir,
+                        size: if is_dir { 0 } else { size },
+                        modified,
+                        extension,
                     });
                 }
                 WalkState::Continue
@@ -159,6 +186,9 @@ pub fn search_files(
                     name: e.name.clone(),
                     path: e.path.clone(),
                     is_dir: e.is_dir,
+                    size: e.size,
+                    modified: e.modified,
+                    extension: e.extension.clone(),
                     score,
                 })
         })

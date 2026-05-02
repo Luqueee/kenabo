@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
-import { Search, Folder, File, Loader2, CornerDownLeft } from "lucide-react"
+import { Search, Loader2, CornerDownLeft } from "lucide-react"
 import { useSearch, useSearchIndex } from "../api/use-search"
+import { FileIcon } from "@/features/file-explorer/components/file-icon"
+import { formatSize, formatDate } from "@/shared/lib/format"
 import type { SearchResult } from "@/features/filesystem/domain/file-entry"
 
 interface Props {
@@ -123,29 +125,38 @@ export function SearchPalette({
               Sin resultados
             </div>
           )}
-          {results.map((r, i) => (
-            <button
-              key={r.path}
-              data-index={i}
-              onClick={() => handleSelect(r)}
-              onMouseEnter={() => setSelected(i)}
-              className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${
-                i === selected
-                  ? "bg-accent text-accent-foreground"
-                  : "text-foreground"
-              }`}
-            >
-              {r.is_dir ? (
-                <Folder className="h-4 w-4 shrink-0 text-blue-400" />
-              ) : (
-                <File className="h-4 w-4 shrink-0 text-muted-foreground" />
-              )}
-              <span className="shrink-0 truncate font-medium">{r.name}</span>
-              <span className="ml-auto truncate text-xs text-muted-foreground">
-                {r.path}
-              </span>
-            </button>
-          ))}
+          {results.map((r, i) => {
+            const parent = r.path.slice(0, r.path.length - r.name.length - 1)
+            return (
+              <button
+                key={r.path}
+                data-index={i}
+                onClick={() => handleSelect(r)}
+                onMouseEnter={() => setSelected(i)}
+                className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${
+                  i === selected
+                    ? "bg-accent text-accent-foreground"
+                    : "text-foreground"
+                }`}
+              >
+                <FileIcon
+                  name={r.name}
+                  isDir={r.is_dir}
+                  extension={r.extension}
+                />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate font-medium">{r.name}</span>
+                  <span className="truncate text-[11px] text-muted-foreground">
+                    {parent || "/"}
+                  </span>
+                </div>
+                <div className="ml-2 flex shrink-0 flex-col items-end text-[11px] text-muted-foreground tabular-nums">
+                  <span>{r.is_dir ? "carpeta" : formatSize(r.size)}</span>
+                  <span>{formatDate(r.modified)}</span>
+                </div>
+              </button>
+            )
+          })}
         </div>
 
         {results.length > 0 && (
