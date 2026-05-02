@@ -152,7 +152,7 @@ export function FileIcon({ entry }: { entry: FileEntry }) {
   const cls = "h-4 w-4 shrink-0"
 
   if (entry.is_dir)
-    return <Folder className={`${cls} fill-blue-400/30 text-blue-400`} />
+    return <Folder className={`${cls} fill-blue-300/40 text-blue-300`} />
 
   const nameIcon = FILENAME_ICON[entry.name]
   if (nameIcon) return <Icon icon={nameIcon} width={16} height={16} />

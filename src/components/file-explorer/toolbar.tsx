@@ -92,9 +92,9 @@ export function Toolbar({
   onOpenSearch,
 }: ToolbarProps) {
   return (
-    <header className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur">
+    <header data-tauri-drag-region className="flex h-12 shrink-0 items-center gap-1 border-b border-border/60 bg-background/95 px-3 backdrop-blur">
       <SidebarTrigger className="h-8 w-8" />
-      <Separator orientation="vertical" className="mx-1 h-5" />
+      <Separator orientation="vertical" className="mx-1 h-full" />
 
       <DroppableUpButton
         parent={parent}
@@ -124,7 +124,7 @@ export function Toolbar({
           className={`h-4 w-4 ${isFavorite ? "fill-amber-400 text-amber-400" : ""}`}
         />
       </Button>
-      <Separator orientation="vertical" className="mx-1 h-5" />
+      <Separator orientation="vertical" className="mx-1 h-full" />
 
       <Breadcrumb className="min-w-0 flex-1 overflow-hidden">
         <BreadcrumbList className="flex-nowrap">
@@ -178,7 +178,7 @@ export function Toolbar({
       <Button
         variant="outline"
         size="sm"
-        className="ml-2 h-8 gap-2 px-2.5 text-muted-foreground"
+        className="ml-2 h-9 gap-2 px-6 text-muted-foreground"
         onClick={onOpenSearch}
       >
         <Search className="h-3.5 w-3.5" />

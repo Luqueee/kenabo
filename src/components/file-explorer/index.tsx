@@ -32,7 +32,13 @@ import {
 } from "@/lib/fs"
 import { Button } from "@/components/ui/button"
 import type { Props, ContextMenuState, Clipboard } from "./types"
-import { pathSegments, parentPath, uniqueDestPath, formatSize, formatDate } from "./utils"
+import {
+  pathSegments,
+  parentPath,
+  uniqueDestPath,
+  formatSize,
+  formatDate,
+} from "./utils"
 import { FileIcon } from "./file-icon"
 import { FileRow } from "./file-row"
 import { FileContextMenu } from "./context-menu"
@@ -107,6 +113,7 @@ export function FileExplorer({
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load(path)
   }, [path, load])
 
@@ -464,49 +471,49 @@ export function FileExplorer({
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-    <div className="flex h-full flex-col overflow-hidden">
-      <Toolbar
-        path={path}
-        segments={segments}
-        parent={parent}
-        loading={loading}
-        isFavorite={isFavorite}
-        isDragging={draggingEntry !== null}
-        onNavigate={onNavigate}
-        onRefresh={() => load(path)}
-        onAddFavorite={() => onAddFavorite(path)}
-        onOpenSearch={onOpenSearch}
-      />
+      <div className="flex h-full flex-col overflow-hidden bg-[#0f0f0f]">
+        <Toolbar
+          path={path}
+          segments={segments}
+          parent={parent}
+          loading={loading}
+          isFavorite={isFavorite}
+          isDragging={draggingEntry !== null}
+          onNavigate={onNavigate}
+          onRefresh={() => load(path)}
+          onAddFavorite={() => onAddFavorite(path)}
+          onOpenSearch={onOpenSearch}
+        />
 
-      {(filterQuery || entries.length > 0) && (
-        <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border/40 bg-muted/10 px-4">
-          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-          <input
-            ref={filterRef}
-            value={filterQuery}
-            onChange={(e) => setFilterQuery(e.target.value)}
-            placeholder="Filtrar... (/)"
-            autoComplete="off"
-            autoCorrect="off"
-            autoCapitalize="off"
-            spellCheck={false}
-            className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
-          />
-          {filterQuery && (
-            <button
-              onClick={() => {
-                setFilterQuery("")
-                filterRef.current?.focus()
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </button>
-          )}
-        </div>
-      )}
+        {(filterQuery || entries.length > 0) && (
+          <div className="flex h-9 shrink-0 items-center gap-2 border-b border-border/40 bg-muted/10 px-4">
+            <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+            <input
+              ref={filterRef}
+              value={filterQuery}
+              onChange={(e) => setFilterQuery(e.target.value)}
+              placeholder="Filtrar... (/)"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+            />
+            {filterQuery && (
+              <button
+                onClick={() => {
+                  setFilterQuery("")
+                  filterRef.current?.focus()
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
 
-      <div
+        <div
           ref={tableRef}
           className="flex-1 overflow-auto"
           onContextMenu={(e) => {
@@ -532,12 +539,16 @@ export function FileExplorer({
             </div>
           )}
 
-          {!loading && !error && entries.length === 0 && !creatingFolder && !creatingFile && (
-            <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
-              <FolderOpen className="h-8 w-8 opacity-50" />
-              <p className="text-sm">Directorio vacío</p>
-            </div>
-          )}
+          {!loading &&
+            !error &&
+            entries.length === 0 &&
+            !creatingFolder &&
+            !creatingFile && (
+              <div className="flex h-full flex-col items-center justify-center gap-2 text-muted-foreground">
+                <FolderOpen className="h-8 w-8 opacity-50" />
+                <p className="text-sm">Directorio vacío</p>
+              </div>
+            )}
 
           {!loading &&
             !error &&
@@ -549,148 +560,149 @@ export function FileExplorer({
               </div>
             )}
 
-          {!error && (filteredEntries.length > 0 || creatingFolder || creatingFile) && (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
-                <tr className="border-b border-border/60">
-                  <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    Nombre
-                  </th>
-                  <th className="w-28 px-4 py-2 text-right text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    Tamaño
-                  </th>
-                  <th className="w-36 px-4 py-2 text-right text-xs font-medium tracking-wider text-muted-foreground uppercase">
-                    Modificado
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {creatingFolder && (
-                  <tr className="border-b border-border/30 bg-accent/30">
-                    <td className="flex min-w-0 items-center gap-2.5 px-4 py-2">
-                      <Folder className="h-4 w-4 shrink-0 fill-blue-400/30 text-blue-400" />
-                      <input
-                        ref={newFolderInputRef}
-                        value={newFolderName}
-                        onChange={(e) => setNewFolderName(e.target.value)}
-                        onBlur={commitNewFolder}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            commitNewFolder()
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault()
-                            setCreatingFolder(false)
-                            setNewFolderName("")
-                          }
-                        }}
-                        placeholder="Nueva carpeta"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                        className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
-                      />
-                    </td>
-                    <td />
-                    <td />
+          {!error &&
+            (filteredEntries.length > 0 || creatingFolder || creatingFile) && (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
+                  <tr className="border-b border-border/60">
+                    <th className="px-4 py-2 text-left text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Nombre
+                    </th>
+                    <th className="w-28 px-4 py-2 text-right text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Tamaño
+                    </th>
+                    <th className="w-36 px-4 py-2 text-right text-xs font-medium tracking-wider text-muted-foreground uppercase">
+                      Modificado
+                    </th>
                   </tr>
-                )}
-
-                {creatingFile && (
-                  <tr className="border-b border-border/30 bg-accent/30">
-                    <td className="flex min-w-0 items-center gap-2.5 px-4 py-2">
-                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                      <input
-                        ref={newFileInputRef}
-                        value={newFileName}
-                        onChange={(e) => setNewFileName(e.target.value)}
-                        onBlur={commitNewFile}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault()
-                            commitNewFile()
-                          }
-                          if (e.key === "Escape") {
-                            e.preventDefault()
-                            setCreatingFile(false)
-                            setNewFileName("")
-                          }
-                        }}
-                        placeholder="nombre.extensión"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        autoCapitalize="off"
-                        spellCheck={false}
-                        className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
-                      />
-                    </td>
-                    <td />
-                    <td />
-                  </tr>
-                )}
-
-                {filteredEntries.map((entry) => {
-                  const isSelected = selected === entry.path
-                  const isRenaming = renaming === entry.path
-                  const isCut =
-                    clipboard?.op === "cut" && clipboard.path === entry.path
-
-                  return (
-                    <FileRow
-                      key={entry.path}
-                      entry={entry}
-                      isSelected={isSelected}
-                      isCut={isCut}
-                      isRenaming={isRenaming}
-                      onClick={() => setSelected(entry.path)}
-                      onDoubleClick={() =>
-                        !isRenaming && handleActivate(entry)
-                      }
-                      onContextMenu={(e) => openContextMenu(e, entry)}
-                    >
+                </thead>
+                <tbody>
+                  {creatingFolder && (
+                    <tr className="border-b border-border/30 bg-accent/30">
                       <td className="flex min-w-0 items-center gap-2.5 px-4 py-2">
-                        <FileIcon entry={entry} />
-                        {isRenaming ? (
-                          <input
-                            ref={renameInputRef}
-                            value={renameValue}
-                            onChange={(e) => setRenameValue(e.target.value)}
-                            onBlur={commitRename}
-                            onClick={(e) => e.stopPropagation()}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault()
-                                commitRename()
-                              }
-                              if (e.key === "Escape") {
-                                e.preventDefault()
-                                setRenaming(null)
-                              }
-                            }}
-                            autoComplete="off"
-                            autoCorrect="off"
-                            autoCapitalize="off"
-                            spellCheck={false}
-                            className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
-                          />
-                        ) : (
-                          <span className="truncate">{entry.name}</span>
-                        )}
+                        <Folder className="h-4 w-4 shrink-0 fill-blue-400/30 text-blue-400" />
+                        <input
+                          ref={newFolderInputRef}
+                          value={newFolderName}
+                          onChange={(e) => setNewFolderName(e.target.value)}
+                          onBlur={commitNewFolder}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              commitNewFolder()
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault()
+                              setCreatingFolder(false)
+                              setNewFolderName("")
+                            }
+                          }}
+                          placeholder="Nueva carpeta"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
+                        />
                       </td>
-                      <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
-                        {entry.is_dir ? "—" : formatSize(entry.size)}
+                      <td />
+                      <td />
+                    </tr>
+                  )}
+
+                  {creatingFile && (
+                    <tr className="border-b border-border/30 bg-accent/30">
+                      <td className="flex min-w-0 items-center gap-2.5 px-4 py-2">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <input
+                          ref={newFileInputRef}
+                          value={newFileName}
+                          onChange={(e) => setNewFileName(e.target.value)}
+                          onBlur={commitNewFile}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault()
+                              commitNewFile()
+                            }
+                            if (e.key === "Escape") {
+                              e.preventDefault()
+                              setCreatingFile(false)
+                              setNewFileName("")
+                            }
+                          }}
+                          placeholder="nombre.extensión"
+                          autoComplete="off"
+                          autoCorrect="off"
+                          autoCapitalize="off"
+                          spellCheck={false}
+                          className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
+                        />
                       </td>
-                      <td className="px-4 py-2 text-right text-muted-foreground">
-                        {formatDate(entry.modified)}
-                      </td>
-                    </FileRow>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
+                      <td />
+                      <td />
+                    </tr>
+                  )}
+
+                  {filteredEntries.map((entry) => {
+                    const isSelected = selected === entry.path
+                    const isRenaming = renaming === entry.path
+                    const isCut =
+                      clipboard?.op === "cut" && clipboard.path === entry.path
+
+                    return (
+                      <FileRow
+                        key={entry.path}
+                        entry={entry}
+                        isSelected={isSelected}
+                        isCut={isCut}
+                        isRenaming={isRenaming}
+                        onClick={() => setSelected(entry.path)}
+                        onDoubleClick={() =>
+                          !isRenaming && handleActivate(entry)
+                        }
+                        onContextMenu={(e) => openContextMenu(e, entry)}
+                      >
+                        <td className="flex min-w-0 items-center gap-2.5 px-4 py-2">
+                          <FileIcon entry={entry} />
+                          {isRenaming ? (
+                            <input
+                              ref={renameInputRef}
+                              value={renameValue}
+                              onChange={(e) => setRenameValue(e.target.value)}
+                              onBlur={commitRename}
+                              onClick={(e) => e.stopPropagation()}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                  e.preventDefault()
+                                  commitRename()
+                                }
+                                if (e.key === "Escape") {
+                                  e.preventDefault()
+                                  setRenaming(null)
+                                }
+                              }}
+                              autoComplete="off"
+                              autoCorrect="off"
+                              autoCapitalize="off"
+                              spellCheck={false}
+                              className="flex-1 rounded border border-primary/60 bg-background px-1.5 py-0.5 text-sm outline-none"
+                            />
+                          ) : (
+                            <span className="truncate">{entry.name}</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-2 text-right text-muted-foreground tabular-nums">
+                          {entry.is_dir ? "—" : formatSize(entry.size)}
+                        </td>
+                        <td className="px-4 py-2 text-right text-muted-foreground">
+                          {formatDate(entry.modified)}
+                        </td>
+                      </FileRow>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
         </div>
 
         <DragOverlay>
@@ -702,85 +714,85 @@ export function FileExplorer({
           )}
         </DragOverlay>
 
-      {deleteTarget && (
-        <div className="flex shrink-0 items-center gap-3 border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">
-          <Trash2 className="h-4 w-4 shrink-0 text-destructive" />
-          <span className="flex-1 truncate">
-            ¿Eliminar <strong>{deleteTarget.name}</strong>? No se puede
-            deshacer.
+        {deleteTarget && (
+          <div className="flex shrink-0 items-center gap-3 border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm">
+            <Trash2 className="h-4 w-4 shrink-0 text-destructive" />
+            <span className="flex-1 truncate">
+              ¿Eliminar <strong>{deleteTarget.name}</strong>? No se puede
+              deshacer.
+            </span>
+            <button
+              onClick={confirmDelete}
+              className="text-destructive-foreground rounded bg-destructive px-3 py-1 text-xs font-medium hover:bg-destructive/90"
+            >
+              Eliminar
+            </button>
+            <button
+              onClick={() => setDeleteTarget(null)}
+              className="rounded px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+
+        {opError && (
+          <div className="flex shrink-0 items-center gap-3 border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4 shrink-0" />
+            <span className="flex-1 truncate">{opError}</span>
+            <button
+              onClick={() => setOpError(null)}
+              className="text-xs hover:opacity-70"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        <footer className="flex h-7 shrink-0 items-center justify-between border-t border-border/60 bg-muted/20 px-4 text-[11px] text-muted-foreground">
+          <span>
+            {!loading && !error && (
+              <>
+                {clipboard && (
+                  <span className="mr-3 text-primary">
+                    {clipboard.op === "copy" ? "Copiado" : "Cortado"}:{" "}
+                    {clipboard.path.split("/").at(-1)}
+                  </span>
+                )}
+                {dirCount} {dirCount === 1 ? "carpeta" : "carpetas"} ·{" "}
+                {fileCount} {fileCount === 1 ? "archivo" : "archivos"}
+                {filterQuery && ` (filtrado de ${entries.length})`}
+              </>
+            )}
           </span>
-          <button
-            onClick={confirmDelete}
-            className="rounded bg-destructive px-3 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/90"
-          >
-            Eliminar
-          </button>
-          <button
-            onClick={() => setDeleteTarget(null)}
-            className="rounded px-3 py-1 text-xs text-muted-foreground hover:bg-muted"
-          >
-            Cancelar
-          </button>
-        </div>
-      )}
+          <span className="font-mono opacity-70">{path}</span>
+        </footer>
 
-      {opError && (
-        <div className="flex shrink-0 items-center gap-3 border-t border-destructive/40 bg-destructive/10 px-4 py-2 text-sm text-destructive">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          <span className="flex-1 truncate">{opError}</span>
-          <button
-            onClick={() => setOpError(null)}
-            className="text-xs hover:opacity-70"
-          >
-            ✕
-          </button>
-        </div>
-      )}
-
-      <footer className="flex h-7 shrink-0 items-center justify-between border-t border-border/60 bg-muted/20 px-4 text-[11px] text-muted-foreground">
-        <span>
-          {!loading && !error && (
-            <>
-              {clipboard && (
-                <span className="mr-3 text-primary">
-                  {clipboard.op === "copy" ? "Copiado" : "Cortado"}:{" "}
-                  {clipboard.path.split("/").at(-1)}
-                </span>
-              )}
-              {dirCount} {dirCount === 1 ? "carpeta" : "carpetas"} · {fileCount}{" "}
-              {fileCount === 1 ? "archivo" : "archivos"}
-              {filterQuery && ` (filtrado de ${entries.length})`}
-            </>
-          )}
-        </span>
-        <span className="font-mono opacity-70">{path}</span>
-      </footer>
-
-      {contextMenu && (
-        <FileContextMenu
-          contextMenu={contextMenu}
-          clipboard={clipboard}
-          onClose={closeContextMenu}
-          onActivate={handleActivate}
-          onCopy={(entry) => setClipboard({ path: entry.path, op: "copy" })}
-          onCut={(entry) => setClipboard({ path: entry.path, op: "cut" })}
-          onPaste={handlePaste}
-          onRename={(entry) => {
-            setRenameValue(entry.name)
-            setRenaming(entry.path)
-          }}
-          onDelete={handleDelete}
-          onNewFolder={() => {
-            setCreatingFolder(true)
-            setNewFolderName("")
-          }}
-          onNewFile={() => {
-            setCreatingFile(true)
-            setNewFileName("")
-          }}
-        />
-      )}
-    </div>
+        {contextMenu && (
+          <FileContextMenu
+            contextMenu={contextMenu}
+            clipboard={clipboard}
+            onClose={closeContextMenu}
+            onActivate={handleActivate}
+            onCopy={(entry) => setClipboard({ path: entry.path, op: "copy" })}
+            onCut={(entry) => setClipboard({ path: entry.path, op: "cut" })}
+            onPaste={handlePaste}
+            onRename={(entry) => {
+              setRenameValue(entry.name)
+              setRenaming(entry.path)
+            }}
+            onDelete={handleDelete}
+            onNewFolder={() => {
+              setCreatingFolder(true)
+              setNewFolderName("")
+            }}
+            onNewFile={() => {
+              setCreatingFile(true)
+              setNewFileName("")
+            }}
+          />
+        )}
+      </div>
     </DndContext>
   )
 }

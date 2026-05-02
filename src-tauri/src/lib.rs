@@ -9,6 +9,7 @@ use nucleo_matcher::pattern::{CaseMatching, Normalization, Pattern};
 use nucleo_matcher::{Config, Matcher, Utf32Str};
 use serde::Serialize;
 use tauri::webview::PageLoadEvent;
+use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
 use tauri_plugin_opener::OpenerExt;
 
@@ -351,6 +352,39 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .plugin(external_navigation_plugin())
+        .setup(|app| {
+            let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
+                .title("file-explorer")
+                .inner_size(1400.0, 700.0)
+                .center()
+                .visible(false)
+                .hidden_title(true);
+
+            #[cfg(target_os = "macos")]
+            let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
+
+            let window = win_builder.build().unwrap();
+
+            #[cfg(target_os = "macos")]
+            {
+                use cocoa::appkit::{NSColor, NSWindow};
+                use cocoa::base::{id, nil};
+
+                let ns_window = window.ns_window().unwrap() as id;
+                unsafe {
+                    let bg_color = NSColor::colorWithRed_green_blue_alpha_(
+                        nil,
+                        29.0 / 255.0,
+                        29.0 / 255.0,
+                        29.0 / 255.0,
+                        1.0,
+                    );
+                    ns_window.setBackgroundColor_(bg_color);
+                }
+            }
+
+            Ok(())
+        })
         .manage(SearchIndex::default())
         .invoke_handler(tauri::generate_handler![
             list_directory,

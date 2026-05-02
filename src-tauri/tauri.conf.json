@@ -12,15 +12,6 @@
   },
   "app": {
     "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "file-explorer",
-        "width": 1400,
-        "height": 918,
-        "center": true,
-        "visible": false
-      }
-    ],
     "security": {
       "csp": null
     }

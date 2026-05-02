@@ -38,6 +38,7 @@ export function AppSidebar({
 
   return (
     <Sidebar collapsible="offcanvas" {...props}>
+      <div data-tauri-drag-region className="h-7 w-full shrink-0" />
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Favoritos</SidebarGroupLabel>
