@@ -6,25 +6,30 @@ import { logger } from "@/shared/lib/logger"
 export function useSearchIndex(root: string, enabled: boolean) {
   const [indexing, setIndexing] = useState(false)
   const [size, setSize] = useState<number | null>(null)
+  const reqRef = useRef(0)
 
   useEffect(() => {
     if (!enabled) return
     setIndexing(true)
     setSize(null)
-    let cancelled = false
+    const myReq = ++reqRef.current
     fsGateway
       .index(root)
       .then((n) => {
-        if (!cancelled) setSize(n)
+        if (myReq !== reqRef.current) return
+        setSize(n)
       })
       .catch((e) => {
-        if (!cancelled) logger.error("index failed", e)
+        if (myReq !== reqRef.current) return
+        logger.error("index failed", e)
       })
       .finally(() => {
-        if (!cancelled) setIndexing(false)
+        if (myReq === reqRef.current) setIndexing(false)
       })
     return () => {
-      cancelled = true
+      // Bump req to discard pending callbacks, clear loading.
+      reqRef.current++
+      setIndexing(false)
     }
   }, [root, enabled])
 
@@ -37,7 +42,11 @@ export function useSearch(root: string, query: string, enabled: boolean) {
   const reqIdRef = useRef(0)
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      setResults([])
+      setLoading(false)
+      return
+    }
     if (!query.trim()) {
       setResults([])
       setLoading(false)
@@ -46,6 +55,7 @@ export function useSearch(root: string, query: string, enabled: boolean) {
     setLoading(true)
     const myReq = ++reqIdRef.current
     const timer = window.setTimeout(() => {
+      if (myReq !== reqIdRef.current) return
       fsGateway
         .search(root, query)
         .then((r) => {
@@ -61,7 +71,12 @@ export function useSearch(root: string, query: string, enabled: boolean) {
           if (myReq === reqIdRef.current) setLoading(false)
         })
     }, 40)
-    return () => window.clearTimeout(timer)
+    return () => {
+      window.clearTimeout(timer)
+      // Discard pending IPC callbacks + clear loading for this query.
+      reqIdRef.current++
+      setLoading(false)
+    }
   }, [root, query, enabled])
 
   return { results, loading }

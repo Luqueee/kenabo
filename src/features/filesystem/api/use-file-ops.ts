@@ -18,7 +18,8 @@ export function useFileOps(
     async (action: () => Promise<void>) => {
       try {
         await action()
-        await fsGateway.clearIndex().catch(() => {})
+        // Fire-and-forget — index invalidation doesn't block UI reload.
+        fsGateway.clearIndex().catch(() => {})
         await onMutate()
       } catch (e) {
         setOpError(fsErrorMessage(e))

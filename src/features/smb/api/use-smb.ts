@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react"
 import { fsGateway } from "@/features/filesystem/infra/fs.gateway"
 import type { SmbShare } from "../domain/share"
+import { fsErrorMessage } from "@/features/filesystem/domain/fs-error"
+import { logger } from "@/shared/lib/logger"
 
 export function useSmb() {
   const [shares, setShares] = useState<SmbShare[]>([])
@@ -58,12 +60,15 @@ export function useSmb() {
   )
 
   const mount = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<string> => {
       setBusyFor(id, true)
       try {
         const path = await fsGateway.smbMount(id)
         await refresh()
         return path
+      } catch (e) {
+        logger.error("SMB mount failed", id, e)
+        throw new Error(fsErrorMessage(e))
       } finally {
         setBusyFor(id, false)
       }
@@ -72,11 +77,14 @@ export function useSmb() {
   )
 
   const unmount = useCallback(
-    async (id: string) => {
+    async (id: string): Promise<void> => {
       setBusyFor(id, true)
       try {
         await fsGateway.smbUnmount(id)
         await refresh()
+      } catch (e) {
+        logger.error("SMB unmount failed", id, e)
+        throw new Error(fsErrorMessage(e))
       } finally {
         setBusyFor(id, false)
       }
