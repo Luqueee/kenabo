@@ -1,43 +1,6 @@
-use std::path::PathBuf;
-
 use tauri::webview::PageLoadEvent;
-use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
-use tauri_plugin_opener::OpenerExt;
-
-mod fs;
-mod path_safety;
-mod search;
-mod smb;
-mod system;
-mod terminal;
-
-fn external_navigation_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
-    tauri::plugin::Builder::<R>::new("external-navigation")
-        .on_navigation(|webview, url| {
-            let is_internal_host = matches!(
-                url.host_str(),
-                Some("localhost") | Some("127.0.0.1") | Some("tauri.localhost") | Some("::1")
-            );
-
-            let is_internal = url.scheme() == "tauri" || is_internal_host;
-
-            if is_internal {
-                return true;
-            }
-
-            let is_external_link = matches!(url.scheme(), "http" | "https" | "mailto" | "tel");
-
-            if is_external_link {
-                log::info!("opening external link in system browser: {}", url);
-                let _ = webview.opener().open_url(url.as_str(), None::<&str>);
-                return false;
-            }
-
-            true
-        })
-        .build()
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -52,10 +15,9 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .plugin(external_navigation_plugin())
         .setup(|app| {
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
-                .title("Arbor")
+                .title("Kenabo")
                 .inner_size(1400.0, 700.0)
                 .center()
                 .visible(false)
@@ -65,29 +27,6 @@ pub fn run() {
             let win_builder = win_builder.title_bar_style(TitleBarStyle::Transparent);
 
             let window = win_builder.build().unwrap();
-
-            let smb_path: PathBuf = app
-                .path()
-                .app_config_dir()
-                .map(|d| d.join("smb.json"))
-                .unwrap_or_else(|_| PathBuf::from("smb.json"));
-            let smb_state = smb::SmbState::new(smb_path);
-            let auto_mounts: Vec<smb::SmbShare> = smb_state
-                .config
-                .lock()
-                .map(|c| c.shares.iter().filter(|s| s.auto_mount).cloned().collect())
-                .unwrap_or_default();
-            std::thread::spawn(move || {
-                for share in auto_mounts {
-                    if smb::mount_point_for(&share).exists() {
-                        continue;
-                    }
-                    if let Err(e) = smb::run_mount(&share) {
-                        log::warn!("auto-mount {} failed: {}", share.name, e);
-                    }
-                }
-            });
-            app.manage(smb_state);
 
             #[cfg(target_os = "macos")]
             {
@@ -109,32 +48,7 @@ pub fn run() {
 
             Ok(())
         })
-        .manage(search::SearchIndex::default())
-        .manage(system::SysState::default())
-        .invoke_handler(tauri::generate_handler![
-            fs::list_directory,
-            fs::get_home_dir,
-            fs::open_file,
-            fs::create_dir,
-            fs::create_file,
-            fs::rename_entry,
-            fs::rename_and_list,
-            fs::delete_entry,
-            fs::copy_entry,
-            fs::move_entry,
-            search::search_files,
-            search::index_path,
-            search::clear_search_index,
-            terminal::open_terminal,
-            terminal::list_terminals,
-            system::get_memory_usage,
-            smb::smb_list,
-            smb::smb_save,
-            smb::smb_delete,
-            smb::smb_mount,
-            smb::smb_unmount,
-            smb::smb_is_mounted
-        ])
+        .invoke_handler(tauri::generate_handler![])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
                 log::info!("main webview finished loading");
