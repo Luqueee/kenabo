@@ -8,7 +8,7 @@ pub enum RequestBody {
     Json { content: String },
     Form { fields: Vec<FormField> },
     Multipart { fields: Vec<MultipartField> },
-    Raw { content_type: String, content: String },
+    Raw { #[serde(rename = "content-type")] content_type: String, content: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

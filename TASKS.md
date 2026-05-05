@@ -2,12 +2,12 @@
 
 ## Request Runner
 
-- [ ] Tab Query Params (editor habilitado)
-- [ ] Tab Auth (basic, bearer, api-key)
-- [ ] Selector de tipo de body (none/json/text/form/raw)
-- [ ] Pretty-print toggle en response body
-- [ ] Copiar response body al portapapeles
-- [ ] Copiar request como cURL
+- [x] Tab Query Params (editor habilitado)
+- [x] Tab Auth (basic, bearer, api-key)
+- [x] Selector de tipo de body (none/json/text/form/raw)
+- [x] Pretty-print toggle en response body
+- [x] Copiar response body al portapapeles
+- [x] Copiar request como cURL
 
 ## Collections
 

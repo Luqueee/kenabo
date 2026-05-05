@@ -1,5 +1,5 @@
 [package]
-name = "tauri-native"
+name = "kenabo"
 version = "0.1.0"
 description = "Kenabo - API client"
 authors = ["you"]
