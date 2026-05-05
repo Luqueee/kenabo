@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select"
 import { HTTP_METHODS, type HttpMethod } from "../../domain/http-method"
 import { useRunnerStore } from "../store"
+import { EnvironmentSelector } from "@/features/environments/presentation/EnvironmentSelector"
 
 export function UrlBar() {
   const method = useRunnerStore((s) => s.request.method)
@@ -44,6 +45,7 @@ export function UrlBar() {
       <Button onClick={() => void send()} disabled={status === "loading" || !url}>
         {status === "loading" ? "Sending..." : "Send"}
       </Button>
+      <EnvironmentSelector />
     </div>
   )
 }

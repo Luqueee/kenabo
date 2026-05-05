@@ -12,6 +12,8 @@ import type { HttpResponse } from "../domain/http-response"
 import type { HttpMethod } from "../domain/http-method"
 import { makeSendRequest } from "../application/send-request"
 import { tauriHttpGateway } from "../infrastructure/tauri-http-gateway"
+import { useCollectionsStore as collectionsStore } from "@/features/collections/presentation/store"
+import { useEnvironmentsStore as environmentsStore } from "@/features/environments/presentation/store"
 
 const sendRequest = makeSendRequest(tauriHttpGateway)
 
@@ -32,6 +34,9 @@ interface RunnerState {
   addQuery: () => void
   removeQuery: (index: number) => void
   setAuth: (auth: AuthScheme) => void
+  loadRequest: (request: HttpRequest, collectionId?: string) => Promise<void>
+  activeCollectionId: string | null
+  saveToCollection: () => Promise<void>
   send: () => Promise<void>
 }
 
@@ -81,13 +86,34 @@ export const useRunnerStore = create<RunnerState>()(
       set((s) => {
         s.request.auth = auth
       }),
+    activeCollectionId: null,
+    loadRequest: async (request, collectionId) => {
+      const { request: current, activeCollectionId } = get()
+      if (current.id === request.id) return
+      if (activeCollectionId) {
+        await collectionsStore.getState().saveRequest(activeCollectionId, current)
+      }
+      set((s) => {
+        s.request = request
+        s.response = null
+        s.status = "idle"
+        s.error = null
+        s.activeCollectionId = collectionId ?? null
+      })
+    },
+    saveToCollection: async () => {
+      const { request, activeCollectionId } = get()
+      if (!activeCollectionId) return
+      await collectionsStore.getState().saveRequest(activeCollectionId, request)
+    },
     send: async () => {
       set((s) => {
         s.status = "loading"
         s.error = null
       })
       try {
-        const response = await sendRequest(get().request)
+        const activeEnvironmentId = environmentsStore.getState().activeId ?? undefined
+        const response = await sendRequest(get().request, activeEnvironmentId)
         set((s) => {
           s.response = response
           s.status = "success"
