@@ -1,6 +1,22 @@
+mod domain;
+mod ports;
+mod application;
+mod infrastructure;
+
+use std::sync::Arc;
+
 use tauri::webview::PageLoadEvent;
-use tauri::{TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
+use tauri::{Manager, TitleBarStyle, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_log::{Target, TargetKind};
+
+use application::collections::CollectionService;
+use application::environments::EnvironmentService;
+use application::execute_request::ExecuteRequestUseCase;
+use infrastructure::http_client::ReqwestHttpClient;
+use infrastructure::persistence::paths::DataPaths;
+use infrastructure::persistence::{FsCollectionRepository, FsEnvironmentRepository};
+use infrastructure::tauri::commands;
+use infrastructure::tauri::state::AppState;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,9 +32,28 @@ pub fn run() {
         )
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            let paths = DataPaths::from_app(app.handle())?;
+            std::fs::create_dir_all(&paths.root).ok();
+
+            let http_client = Arc::new(ReqwestHttpClient::new()?);
+            let collection_repo =
+                Arc::new(FsCollectionRepository::new(paths.collections_dir()));
+            let environment_repo =
+                Arc::new(FsEnvironmentRepository::new(paths.environments_dir()));
+
+            let execute_request = Arc::new(ExecuteRequestUseCase::new(http_client));
+            let collections = Arc::new(CollectionService::new(collection_repo));
+            let environments = Arc::new(EnvironmentService::new(environment_repo));
+
+            app.manage(AppState {
+                execute_request,
+                collections,
+                environments,
+            });
+
             let win_builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("Kenabo")
-                .inner_size(1400.0, 700.0)
+                .inner_size(1400.0, 800.0)
                 .center()
                 .visible(false)
                 .hidden_title(true);
@@ -48,7 +83,17 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![])
+        .invoke_handler(tauri::generate_handler![
+            commands::execute_request,
+            commands::list_collections,
+            commands::create_collection,
+            commands::save_collection,
+            commands::delete_collection,
+            commands::list_environments,
+            commands::create_environment,
+            commands::save_environment,
+            commands::delete_environment,
+        ])
         .on_page_load(|webview, payload| {
             if webview.label() == "main" && matches!(payload.event(), PageLoadEvent::Finished) {
                 log::info!("main webview finished loading");
