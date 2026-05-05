@@ -27,11 +27,13 @@ async function copyToClipboard(text: string) {
 
 function HeadersTable({ rows }: { rows: [string, string][] }) {
   return (
-    <table className="w-full text-xs font-mono">
+    <table className="w-full font-mono text-xs">
       <tbody>
         {rows.map(([k, v], i) => (
           <tr key={i} className="border-b">
-            <td className="p-2 text-muted-foreground align-top whitespace-nowrap">{k}</td>
+            <td className="p-2 align-top whitespace-nowrap text-muted-foreground">
+              {k}
+            </td>
             <td className="p-2 break-all">{v}</td>
           </tr>
         ))}
@@ -70,22 +72,23 @@ function RequestSummary({ request }: { request: HttpRequest }) {
   const headers = computedRequestHeaders(request)
 
   return (
-    <div className="text-xs font-mono">
-      <div className="px-3 py-2 border-b bg-muted/30">
+    <div className="font-mono text-xs">
+      <div className="border-b bg-muted/30 px-3 py-2">
         <span className="font-semibold text-primary">{request.method}</span>{" "}
         <span className="break-all">{request.url || "(no url)"}</span>
       </div>
-
       {enabledQuery.length > 0 && (
         <>
-          <div className="px-3 py-1 text-muted-foreground font-sans text-[11px] uppercase tracking-wide border-b bg-muted/10">
+          <div className="border-b bg-muted/10 px-3 py-1 font-sans text-[11px] tracking-wide text-muted-foreground uppercase">
             Query params
           </div>
           <table className="w-full">
             <tbody>
               {enabledQuery.map((q, i) => (
                 <tr key={i} className="border-b">
-                  <td className="p-2 text-muted-foreground whitespace-nowrap">{q.name}</td>
+                  <td className="p-2 whitespace-nowrap text-muted-foreground">
+                    {q.name}
+                  </td>
                   <td className="p-2 break-all">{q.value}</td>
                 </tr>
               ))}
@@ -93,8 +96,7 @@ function RequestSummary({ request }: { request: HttpRequest }) {
           </table>
         </>
       )}
-
-      <div className="px-3 py-1 text-muted-foreground font-sans text-[11px] uppercase tracking-wide border-b bg-muted/10">
+      <div className="border-b bg-muted/10 px-3 py-1 font-sans text-[11px] tracking-wide text-muted-foreground uppercase">
         Headers
       </div>
       {headers.length > 0 ? (
@@ -102,14 +104,16 @@ function RequestSummary({ request }: { request: HttpRequest }) {
           <tbody>
             {headers.map(([k, v], i) => (
               <tr key={i} className="border-b">
-                <td className="p-2 text-muted-foreground whitespace-nowrap">{k}</td>
+                <td className="p-2 whitespace-nowrap text-muted-foreground">
+                  {k}
+                </td>
                 <td className="p-2 break-all">{v}</td>
               </tr>
             ))}
           </tbody>
         </table>
       ) : (
-        <p className="px-3 py-2 text-muted-foreground font-sans">(none)</p>
+        <p className="px-3 py-2 font-sans text-muted-foreground">(none)</p>
       )}
     </div>
   )
@@ -138,109 +142,153 @@ export function ResponsePanel() {
     setTimeout(() => setCopiedCurl(false), 1500)
   }
 
-  if (status === "idle")
-    return (
-      <div className="flex flex-col flex-1 min-h-0">
-        <div className="flex justify-end px-3 py-2 border-b shrink-0">
-          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={handleCopyCurl}>
-            {copiedCurl ? "✓ Copied!" : "Copy as cURL"}
-          </Button>
-        </div>
-        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-          Send a request to see the response
-        </div>
-      </div>
-    )
+  const hasResponse = status === "success" && response !== null
 
-  if (status === "loading")
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
-        Sending…
-      </div>
-    )
-
-  if (status === "error")
-    return (
-      <div className="flex-1 p-4 text-sm text-destructive font-mono whitespace-pre-wrap">
-        {error}
-      </div>
-    )
-
-  if (!response) return null
-
-  const statusColor =
-    response.status < 300
+  const statusColor = !response
+    ? "secondary"
+    : response.status < 300
       ? "default"
       : response.status < 400
         ? "secondary"
         : "destructive"
 
-  const rawBody =
-    response.body.type === "text"
+  const rawBody = !response
+    ? ""
+    : response.body.type === "text"
       ? response.body.content
       : response.body.type === "binary"
         ? `[binary ${formatBytes(response.size_bytes)}]`
         : "[empty]"
 
   const prettyBody = tryPrettyJson(rawBody)
-  const isJson = prettyBody !== rawBody || (() => { try { JSON.parse(rawBody); return true } catch { return false } })()
+  const isJson =
+    rawBody !== "" &&
+    (prettyBody !== rawBody ||
+      (() => {
+        try {
+          JSON.parse(rawBody)
+          return true
+        } catch {
+          return false
+        }
+      })())
   const bodyText = prettyPrint ? prettyBody : rawBody
 
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center gap-3 px-3 py-2 border-b text-xs shrink-0">
-        <Badge variant={statusColor}>
-          {response.status} {response.status_text}
-        </Badge>
-        <span className="text-muted-foreground">{response.elapsed_ms} ms</span>
-        <span className="text-muted-foreground">{formatBytes(response.size_bytes)}</span>
+    <Tabs defaultValue="body" className="flex min-h-0 flex-1 flex-col">
+      {/* status bar — top */}
+      {hasResponse && (
+        <div className="jsutify-between flex w-full items-center gap-3 border-b py-2 pr-4">
+          <div className="flex h-9 shrink-0 items-center gap-3 px-3">
+            <Badge variant={statusColor} className="text-xs">
+              {response!.status} {response!.status_text}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {response!.elapsed_ms} ms
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {formatBytes(response!.size_bytes)}
+            </span>
+          </div>
+          <TabsList className="ml-auto h-7 p-0.5">
+            <TabsTrigger value="body" className="h-6 px-2 text-xs">
+              Body
+            </TabsTrigger>
+            <TabsTrigger
+              value="headers"
+              className="h-6 px-2 text-xs"
+              disabled={!hasResponse}
+            >
+              Headers{hasResponse ? ` (${response!.headers.length})` : ""}
+            </TabsTrigger>
+            <TabsTrigger value="request" className="h-6 px-2 text-xs">
+              Request
+            </TabsTrigger>
+          </TabsList>
+        </div>
+      )}
+
+      {/* content — flex-1, fills all space between status and footer */}
+      <TabsContent value="body" className="mt-0 min-h-0 flex-1 overflow-auto">
+        {status === "idle" && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Send a request to see the response
+          </div>
+        )}
+        {status === "loading" && (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            Sending…
+          </div>
+        )}
+        {status === "error" && (
+          <div className="p-4 font-mono text-sm whitespace-pre-wrap text-destructive">
+            {error}
+          </div>
+        )}
+        {hasResponse &&
+          (prettyPrint && isJson ? (
+            <JsonViewer code={bodyText} />
+          ) : (
+            <pre className="p-3 font-mono text-xs break-all whitespace-pre-wrap">
+              {bodyText}
+            </pre>
+          ))}
+      </TabsContent>
+
+      <TabsContent
+        value="headers"
+        className="mt-0 min-h-0 flex-1 overflow-auto"
+      >
+        {hasResponse ? (
+          <HeadersTable rows={response!.headers} />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+            No response yet
+          </div>
+        )}
+      </TabsContent>
+
+      <TabsContent
+        value="request"
+        className="mt-0 min-h-0 flex-1 overflow-auto"
+      >
+        <RequestSummary request={request} />
+      </TabsContent>
+
+      {/* footer — tabs + actions, always at bottom */}
+      <div className="flex h-9 shrink-0 items-center gap-2 border-t px-3">
         <div className="ml-auto flex items-center gap-1">
+          {hasResponse && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={() => setPrettyPrint((p) => !p)}
+              >
+                {prettyPrint ? "Raw" : "Pretty"}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                onClick={handleCopyBody}
+                disabled={response!.body.type !== "text"}
+              >
+                {copiedBody ? "✓ Copied!" : "Copy body"}
+              </Button>
+            </>
+          )}
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs h-7"
-            onClick={() => setPrettyPrint((p) => !p)}
+            className="h-6 px-2 text-xs"
+            onClick={handleCopyCurl}
           >
-            {prettyPrint ? "Raw" : "Pretty"}
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs h-7"
-            onClick={handleCopyBody}
-            disabled={response.body.type !== "text"}
-          >
-            {copiedBody ? "✓ Copied!" : "Copy body"}
-          </Button>
-          <Button variant="ghost" size="sm" className="text-xs h-7" onClick={handleCopyCurl}>
             {copiedCurl ? "✓ Copied!" : "Copy as cURL"}
           </Button>
         </div>
       </div>
-      <Tabs defaultValue="body" className="flex flex-col flex-1 min-h-0">
-        <TabsList className="mx-3 mt-2 shrink-0">
-          <TabsTrigger value="body">Body</TabsTrigger>
-          <TabsTrigger value="headers">
-            Headers ({response.headers.length})
-          </TabsTrigger>
-          <TabsTrigger value="request">Request</TabsTrigger>
-        </TabsList>
-        <TabsContent value="body" className="flex-1 min-h-0 overflow-auto mt-0">
-          {prettyPrint && isJson ? (
-            <JsonViewer code={bodyText} />
-          ) : (
-            <pre className="p-3 text-xs font-mono whitespace-pre-wrap break-all">
-              {bodyText}
-            </pre>
-          )}
-        </TabsContent>
-        <TabsContent value="headers" className="flex-1 min-h-0 overflow-auto mt-0">
-          <HeadersTable rows={response.headers} />
-        </TabsContent>
-        <TabsContent value="request" className="flex-1 min-h-0 overflow-auto mt-0">
-          <RequestSummary request={request} />
-        </TabsContent>
-      </Tabs>
-    </div>
+    </Tabs>
   )
 }
